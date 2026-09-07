@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --color-kkp-dark: #2e1d52;
+  --color-kkp-sidebar: #372464;
+  --color-kkp-sidebar-hover: #483180;
+  --color-kkp-primary: #3c2a68;
+  --color-kkp-purple: #5c39a0;
+  --color-kkp-purple-light: #ece7f8;
+  --color-kkp-accent: #6b3ba7;
+  --color-kkp-badge-high: #16a34a;
+  --color-kkp-badge-med: #d97706;
+  --color-kkp-badge-low: #dc2626;
+  --color-kkp-bg: #f8fafc;
+}
+
+:root {
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar matched to KKP Deep Purple Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1e1336;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb {
+  background: #5c39a0;
+  border-radius: 9999px;
+  border: 1px solid #3c2a68;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #fbbf24;
+}
+
+/* Custom Sleek Purple Scrollbar for Dark Theme Containers & Tabs */
+.purple-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #6b43b8 #190f2e;
+}
+.purple-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.purple-scrollbar::-webkit-scrollbar-track {
+  background: #190f2e;
+  border-radius: 9999px;
+}
+.purple-scrollbar::-webkit-scrollbar-thumb {
+  background: #6b43b8;
+  border-radius: 9999px;
+}
+.purple-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #fbbf24;
+}
+
+.banking-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.purple-gradient-btn {
+  background: linear-gradient(135deg, #5c39a0 0%, #46287e 100%);
+  color: #ffffff;
+  transition: all 0.2s ease-in-out;
+}
+.purple-gradient-btn:hover {
+  background: linear-gradient(135deg, #6b43b8 0%, #523192 100%);
+  box-shadow: 0 4px 12px rgba(92, 57, 160, 0.25);
+}

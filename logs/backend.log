@@ -1,0 +1,18 @@
+2026/09/06 12:51:03  KKP AI Backend server starting on port 8080...
+
+ ┌───────────────────────────────────────────────────┐ 
+ │   KKP AI Data Transformation Platform API v1.0    │ 
+ │                  Fiber v2.52.15                   │ 
+ │               http://127.0.0.1:8080               │ 
+ │       (bound on host 0.0.0.0 and port 8080)       │ 
+ │                                                   │ 
+ │ Handlers ............ 26  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............. 45341 │ 
+ └───────────────────────────────────────────────────┘ 
+
+12:51:03 | 200 |     627.208µs | 127.0.0.1 | GET | /api/v1/processes | -
+12:51:03 | 200 |      17.042µs | 127.0.0.1 | GET | /api/v1/processes | -
+12:51:03 | 200 |      17.833µs | 127.0.0.1 | GET | /api/v1/processes | -
+12:51:03 | 200 |       6.958µs | 127.0.0.1 | GET | /api/v1/processes | -
+21:53:59 | 201 |   15.738584ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+21:56:25 | 201 |    7.461458ms | 127.0.0.1 | POST | /api/v1/files/upload | -
