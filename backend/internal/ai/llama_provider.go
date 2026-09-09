@@ -69,6 +69,11 @@ func (l *LlamaProvider) MatchFields(ctx context.Context, processID string, sourc
 	prompt := fmt.Sprintf(`You are an expert financial AI data transformation system for KKP Bank.
 Analyze the following source fields and match each to the best target field in the target schema.
 
+CRITICAL FINANCIAL AUDIT RULES:
+1. Exact or unambiguous matches: confidence 0.85 - 0.98.
+2. Generic or ambiguous terms (e.g. 'Date', 'Fund', 'Price', 'Total', 'Code', 'No', or vague abbreviations): confidence MUST BE LESS THAN 0.60 (e.g. 0.48 - 0.58).
+3. Completely unrelated or unmatched fields: target_field "UNMATCHED", confidence 0.0.
+
 Target Fields available:
 %v
 

@@ -1,4 +1,5 @@
-2026/09/06 12:51:03  KKP AI Backend server starting on port 8080...
+2026/09/09 09:57:49 Loaded environment variables from ../.env
+2026/09/09 09:57:49  KKP AI Backend server starting on port 8080...
 
  ┌───────────────────────────────────────────────────┐ 
  │   KKP AI Data Transformation Platform API v1.0    │ 
@@ -6,13 +7,117 @@
  │               http://127.0.0.1:8080               │ 
  │       (bound on host 0.0.0.0 and port 8080)       │ 
  │                                                   │ 
- │ Handlers ............ 26  Processes ........... 1 │ 
- │ Prefork ....... Disabled  PID ............. 45341 │ 
+ │ Handlers ............ 28  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............. 33676 │ 
  └───────────────────────────────────────────────────┘ 
 
-12:51:03 | 200 |     627.208µs | 127.0.0.1 | GET | /api/v1/processes | -
-12:51:03 | 200 |      17.042µs | 127.0.0.1 | GET | /api/v1/processes | -
-12:51:03 | 200 |      17.833µs | 127.0.0.1 | GET | /api/v1/processes | -
-12:51:03 | 200 |       6.958µs | 127.0.0.1 | GET | /api/v1/processes | -
-21:53:59 | 201 |   15.738584ms | 127.0.0.1 | POST | /api/v1/files/upload | -
-21:56:25 | 201 |    7.461458ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+09:57:49 | 200 |     489.209µs | 127.0.0.1 | GET | /api/v1/processes | -
+09:57:49 | 200 |       9.291µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:03:37 | 201 |      5.9985ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+10:07:18 | 200 |      58.458µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:11:14 | 200 |     145.292µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:11:14 | 200 |      63.791µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:17:41 | 201 |  289.094292ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+10:17:50 | 200 |      93.125µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:17:50 | 200 |      76.625µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:17:50 | 200 |        76.5µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:17:50 | 200 |      77.708µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:17:50 | 200 |      97.791µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:17:50 | 200 |     185.375µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:17:54 | 201 |    146.3305ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+10:19:07 | 200 |     176.541µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:19:12 | 201 |  142.828208ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+10:21:54 | 404 |    1.537834ms | 127.0.0.1 | PUT | /api/v1/processes/proc_1788923953188/step | -
+10:22:47 | 404 |      73.458µs | 127.0.0.1 | PUT | /api/v1/processes/proc_1788923953188/step | -
+10:31:00 | 200 |     421.917µs | 127.0.0.1 | PUT | /api/v1/processes/7a404218-3c84-4814-88b1-cd5a8b6d2af7/step | -
+10:31:22 | 201 |     288.256ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+10:32:19 | 404 |      76.292µs | 127.0.0.1 | PUT | /api/v1/processes/proc_1788924682840/step | -
+10:33:23 | 404 |      69.083µs | 127.0.0.1 | PUT | /api/v1/processes/proc_1788924682840/step | -
+10:35:14 | 200 |     221.708µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:35:22 | 200 |     162.333µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:35:33 | 200 |     156.291µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:35:33 | 200 |      56.791µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:09 | 200 |     202.083µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:09 | 200 |      110.25µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:09 | 200 |      17.875µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:09 | 200 |      32.042µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:09 | 200 |     127.541µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:09 | 200 |     137.791µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:09 | 200 |      39.875µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:09 | 200 |      14.125µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:09 | 200 |     191.375µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:09 | 200 |     193.084µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:09 | 200 |       9.375µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:09 | 200 |      14.291µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:10 | 200 |      404.25µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:10 | 200 |     231.834µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:10 | 200 |       10.75µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:10 | 200 |        11.5µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:12 | 200 |     153.709µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:12 | 200 |      21.459µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:20 | 200 |     264.084µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:20 | 200 |      39.834µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:32 | 200 |     321.375µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:32 | 200 |      43.959µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:44 | 200 |     335.833µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:44 | 200 |        27.5µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:36:53 | 200 |     208.375µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:36:53 | 200 |      23.208µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:37:34 | 201 |  198.504083ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+10:44:33 | 200 |      192.75µs | 127.0.0.1 | PUT | /api/v1/processes/7a404218-3c84-4814-88b1-cd5a8b6d2af7/step | -
+10:47:21 | 200 |     185.042µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:47:21 | 200 |     226.209µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:47:21 | 200 |      31.583µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:47:21 | 200 |      23.042µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:47:21 | 200 |     187.292µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:47:21 | 200 |     573.916µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:47:22 | 200 |      58.333µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:47:22 | 200 |       9.709µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:48:57 | 201 |  247.715625ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+10:49:18 | 404 |      71.625µs | 127.0.0.1 | PUT | /api/v1/processes/proc_1788925737154/step | -
+10:49:25 | 404 |      88.208µs | 127.0.0.1 | PUT | /api/v1/processes/proc_1788925737154/step | -
+10:50:21 | 200 |     897.166µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:50:21 | 200 |      46.375µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:50:22 | 200 |     510.292µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:50:22 | 200 |      59.083µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:50:23 | 200 |     653.708µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:50:23 | 200 |      24.333µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:53:33 | 200 |     598.625µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:53:33 | 200 |      31.666µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:53:33 | 200 |     742.125µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:53:33 | 200 |      39.583µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+10:54:01 | 200 |     178.209µs | 127.0.0.1 | GET | /api/v1/processes | -
+10:54:01 | 200 |      30.291µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:00:05 | 200 |      107.25µs | 127.0.0.1 | GET | /api/v1/settings/ai | -
+11:00:05 | 200 |     150.041µs | 127.0.0.1 | POST | /api/v1/settings/ai | -
+11:00:05 | 200 |      84.542µs | 127.0.0.1 | POST | /api/v1/settings/ai | -
+11:00:05 | 200 |        8.75µs | 127.0.0.1 | GET | /api/v1/settings/ai | -
+11:01:21 | 200 |     198.333µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:01:21 | 200 |     229.333µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:01:21 | 200 |      15.375µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:01:21 | 200 |      13.875µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:04:56 | 200 |      35.917µs | 127.0.0.1 | GET | /api/v1/settings/ai | -
+11:04:56 | 200 |      53.708µs | 127.0.0.1 | POST | /api/v1/settings/ai | -
+11:04:56 | 200 |      46.167µs | 127.0.0.1 | POST | /api/v1/settings/ai | -
+11:04:56 | 200 |      20.208µs | 127.0.0.1 | GET | /api/v1/settings/ai | -
+11:07:35 | 200 |     312.542µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |     347.792µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |      22.625µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:35 | 200 |      19.333µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:35 | 200 |     215.125µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |     329.291µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |      37.833µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:35 | 200 |          15µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:35 | 200 |     278.375µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |       536.5µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |      15.792µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:35 | 200 |      12.458µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:35 | 200 |     204.292µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |      587.25µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:07:35 | 200 |      26.833µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:35 | 200 |       21.25µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:07:51 | 201 |  659.209791ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+11:08:13 | 200 |     473.917µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:08:13 | 200 |      23.834µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+11:08:27 | 200 |     168.083µs | 127.0.0.1 | GET | /api/v1/processes | -
+11:08:27 | 200 |      13.916µs | 127.0.0.1 | GET | /api/v1/audit-logs | -

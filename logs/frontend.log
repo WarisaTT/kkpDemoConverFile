@@ -4,12 +4,932 @@
 
 ▲ Next.js 16.3.4 (Turbopack)
 - Local:         http://localhost:3000
-- Network:       http://192.168.1.50:3000
-✓ Ready in 349ms
-⚠ Warning: Next.js ignored package-lock.json in /Users/garfairdummn because it would include your home directory (/Users/garfairdummn).
+- Network:       http://172.20.10.2:3000
+- Environments: .env.local
+✓ Ready in 199ms
+⚠ Warning: Next.js ignored package-lock.json in /Users/garfairdummn because it is outside the current Git repository (/Users/garfairdummn/Documents/GitHub/KKPConvertByAI/frontend).
  To use this directory, set `turbopack.root` in your Next.js config.
 
-✓ Running next.config.ts took 27ms
+✓ Running next.config.ts took 13ms
 
- GET / 200 in 456ms (next.js: 259ms, application-code: 197ms)
- GET / 200 in 1005ms (next.js: 816ms, application-code: 189ms)
+ GET / 200 in 283ms (next.js: 108ms, application-code: 175ms)
+✓ Compiled in 62ms
+ GET / 200 in 13ms (next.js: 4ms, application-code: 9ms)
+[browser] ./src/components/process/BottomGridSection.tsx:332:13
+Error: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+  330 |                   : 'ดาวน์โหลดไฟล์ได้ใน Step ที่ 4 หลังจากกดยืนยันการตรวจสอบใน Step 3 แล้วเท่านั้น'
+  331 |               }
+> 332 |             >
+      |             ^
+  333 |               {process?.status === 'Completed' ? (
+  334 |                 <Download className="w-4 h-4 text-purple-700" />
+  335 |               ) : (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/BottomGridSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/BottomGridSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/BottomGridSection.tsx:326:17
+Error: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  324 |                   ? 'text-[#3c2a68] bg-white border-purple-300 hover:bg-purple-50 shadow-...
+  325 |                   : 'text-slate-400 bg-slate-100 border-slate-200 cursor-not-allowed'
+> 326 |               }`}
+      |                 ^
+  327 |               title={
+  328 |                 process?.status === 'Completed'
+  329 |                   ? 'ดาวน์โหลดไฟล์ Excel'
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/BottomGridSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/BottomGridSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+ GET / 200 in 19ms (next.js: 4ms, application-code: 15ms)
+✓ Compiled in 47ms
+ GET / 200 in 10ms (next.js: 2ms, application-code: 8ms)
+✓ Compiled in 40ms
+✓ Compiled in 51ms
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 35ms
+✓ Compiled in 52ms
+✓ Compiled in 53ms
+[browser] ./src/components/process/UploadSection.tsx:447:14
+Error: Expected a semicolon
+  445 |                 </div>
+  446 |               );
+> 447 |             })()}
+      |              ^
+  448 |           </div>
+  449 |         </div>
+  450 |       </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/UploadSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/UploadSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/UploadSection.tsx:422:17
+Error: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+  420 |                   }`}
+  421 |                   title={hasMissing ? `คลิกเพื่อดูรายละเอียดและกรองดูเฉพาะรายการ Amber (${missi...
+> 422 |                 >
+      |                 ^
+  423 |                   <div>
+  424 |                     <span className={`font-bold block ${hasMissing ? 'text-amber-900 grou...
+  425 |                       ข้อมูลขาดหาย (Missing Values)
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/UploadSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/UploadSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/UploadSection.tsx:420:21
+Error: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  418 |         </div>
+  419 |       </div>
+> 420 |                   }`}
+      |                     ^
+  421 |                   title={hasMissing ? `คลิกเพื่อดูรายละเอียดและกรองดูเฉพาะรายการ Amber (${missi...
+  422 |                 >
+  423 |                   <div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/UploadSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/UploadSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+⨯ ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  [90m580 |[0m       </div>
+  [90m581 |[0m
+[31m[1m>[0m [90m582 |[0m       {[90m/* Main Presentation View (Read-Only Table & JSON) */[0m}
+  [90m    |[0m       [31m[1m^[0m
+  [90m583 |[0m       <div className=[32m"banking-card overflow-hidden"[0m>
+  [90m584 |[0m         {[90m/* Toolbar, Sheet Tabs & Filter Bar */[0m}
+  [90m585 |[0m         <div className=[32m"bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+ GET / 500 in 330ms (next.js: 278ms, application-code: 52ms)
+[browser] Uncaught Error: ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/process/TransformationPreviewSection.tsx:582:7)
+    at <unknown> (Error: (./src/components/process/TransformationPreviewSection.tsx:582:7)
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+⨯ ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  [90m580 |[0m       </div>
+  [90m581 |[0m
+[31m[1m>[0m [90m582 |[0m       {[90m/* Main Presentation View (Read-Only Table & JSON) */[0m}
+  [90m    |[0m       [31m[1m^[0m
+  [90m583 |[0m       <div className=[32m"banking-card overflow-hidden"[0m>
+  [90m584 |[0m         {[90m/* Toolbar, Sheet Tabs & Filter Bar */[0m}
+  [90m585 |[0m         <div className=[32m"bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET / 500 in 8ms (next.js: 3ms, application-code: 5ms)
+[browser] Uncaught Error: ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/process/TransformationPreviewSection.tsx:582:7)
+    at <unknown> (Error: (./src/components/process/TransformationPreviewSection.tsx:582:7)
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+⨯ ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  [90m580 |[0m       </div>
+  [90m581 |[0m
+[31m[1m>[0m [90m582 |[0m       {[90m/* Main Presentation View (Read-Only Table & JSON) */[0m}
+  [90m    |[0m       [31m[1m^[0m
+  [90m583 |[0m       <div className=[32m"banking-card overflow-hidden"[0m>
+  [90m584 |[0m         {[90m/* Toolbar, Sheet Tabs & Filter Bar */[0m}
+  [90m585 |[0m         <div className=[32m"bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET / 500 in 19ms (next.js: 9ms, application-code: 10ms)
+[browser] Uncaught Error: ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/process/TransformationPreviewSection.tsx:582:7)
+    at <unknown> (Error: (./src/components/process/TransformationPreviewSection.tsx:582:7)
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+⨯ ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  [90m580 |[0m       </div>
+  [90m581 |[0m
+[31m[1m>[0m [90m582 |[0m       {[90m/* Main Presentation View (Read-Only Table & JSON) */[0m}
+  [90m    |[0m       [31m[1m^[0m
+  [90m583 |[0m       <div className=[32m"banking-card overflow-hidden"[0m>
+  [90m584 |[0m         {[90m/* Toolbar, Sheet Tabs & Filter Bar */[0m}
+  [90m585 |[0m         <div className=[32m"bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET / 500 in 22ms (next.js: 10ms, application-code: 12ms)
+[browser] Uncaught Error: ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/process/TransformationPreviewSection.tsx:582:7)
+    at <unknown> (Error: (./src/components/process/TransformationPreviewSection.tsx:582:7)
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+⨯ ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  [90m580 |[0m       </div>
+  [90m581 |[0m
+[31m[1m>[0m [90m582 |[0m       {[90m/* Main Presentation View (Read-Only Table & JSON) */[0m}
+  [90m    |[0m       [31m[1m^[0m
+  [90m583 |[0m       <div className=[32m"banking-card overflow-hidden"[0m>
+  [90m584 |[0m         {[90m/* Toolbar, Sheet Tabs & Filter Bar */[0m}
+  [90m585 |[0m         <div className=[32m"bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET / 500 in 8ms (next.js: 4ms, application-code: 4ms)
+[browser] Uncaught Error: ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/process/TransformationPreviewSection.tsx:582:7)
+    at <unknown> (Error: (./src/components/process/TransformationPreviewSection.tsx:582:7)
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/components/process/TransformationPreviewSection.tsx:582:7
+Error: Expected ',', got '{'
+  580 |       </div>
+  581 |
+> 582 |       {/* Main Presentation View (Read-Only Table & JSON) */}
+      |       ^
+  583 |       <div className="banking-card overflow-hidden">
+  584 |         {/* Toolbar, Sheet Tabs & Filter Bar */}
+  585 |         <div className="bg-[#2e1d52] text-white p-4 border-b border-purple-950 space-y-3">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component Browser]
+    ./src/components/process/NewProcessView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/process/TransformationPreviewSection.tsx [Client Component SSR]
+    ./src/components/process/NewProcessView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+ GET / 200 in 80ms (next.js: 3ms, application-code: 77ms)
+ HEAD / 200 in 23ms (next.js: 3ms, application-code: 20ms)
+ GET / 200 in 42ms (next.js: 7ms, application-code: 36ms)
+ GET / 200 in 36ms (next.js: 3ms, application-code: 33ms)
+ GET / 200 in 21ms (next.js: 1.5ms, application-code: 20ms)
+ GET / 200 in 13ms (next.js: 4ms, application-code: 9ms)
+✓ Compiled in 64ms
+ GET / 200 in 13ms (next.js: 3ms, application-code: 10ms)
+✓ Compiled in 48ms
+ GET / 200 in 22ms (next.js: 6ms, application-code: 16ms)
+✓ Compiled in 79ms
+ GET / 200 in 12ms (next.js: 4ms, application-code: 8ms)
+✓ Compiled in 43ms
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 52ms
+ GET / 200 in 9ms (next.js: 3ms, application-code: 6ms)
+✓ Compiled in 50ms
+ GET / 200 in 10ms (next.js: 2ms, application-code: 8ms)
+✓ Compiled in 39ms
+ GET / 200 in 10ms (next.js: 2ms, application-code: 7ms)
+✓ Compiled in 61ms
+ GET / 200 in 16ms (next.js: 5ms, application-code: 12ms)
+✓ Compiled in 46ms
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 41ms
+ GET / 200 in 11ms (next.js: 3ms, application-code: 8ms)
+✓ Compiled in 32ms
+ GET / 200 in 9ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 37ms
+ GET / 200 in 13ms (next.js: 4ms, application-code: 9ms)
+✓ Compiled in 24ms
+✓ Compiled in 64ms
+ GET / 200 in 29ms (next.js: 8ms, application-code: 22ms)
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 45ms
+ GET / 200 in 13ms (next.js: 4ms, application-code: 9ms)
+✓ Compiled in 50ms
+ GET / 200 in 89ms (next.js: 5ms, application-code: 84ms)
+ GET / 200 in 19ms (next.js: 1.5ms, application-code: 18ms)
+ GET / 200 in 19ms (next.js: 1.2ms, application-code: 18ms)
+ GET / 200 in 23ms (next.js: 1.9ms, application-code: 21ms)
+ GET / 200 in 11ms (next.js: 3ms, application-code: 8ms)
+✓ Compiled in 37ms
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 39ms
+ GET / 200 in 13ms (next.js: 3ms, application-code: 10ms)
+✓ Compiled in 37ms
+ GET / 200 in 28ms (next.js: 7ms, application-code: 21ms)
+✓ Compiled in 45ms
+ GET / 200 in 13ms (next.js: 4ms, application-code: 9ms)
+✓ Compiled in 45ms
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 212ms
+ GET / 200 in 13ms (next.js: 4ms, application-code: 9ms)
+✓ Compiled in 37ms
+ GET / 200 in 16ms (next.js: 3ms, application-code: 14ms)
+✓ Compiled in 54ms
+ GET / 200 in 57ms (next.js: 4ms, application-code: 53ms)
+ GET / 200 in 19ms (next.js: 1.4ms, application-code: 18ms)
+ GET / 200 in 9ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 29ms
+ GET / 200 in 17ms (next.js: 4ms, application-code: 13ms)
+✓ Compiled in 51ms
+ GET / 200 in 11ms (next.js: 3ms, application-code: 8ms)
+✓ Compiled in 32ms
+ GET / 200 in 16ms (next.js: 3ms, application-code: 13ms)
+✓ Compiled in 57ms
+ GET / 200 in 10ms (next.js: 3ms, application-code: 7ms)
+✓ Compiled in 28ms
+ GET / 200 in 18ms (next.js: 5ms, application-code: 14ms)
+✓ Compiled in 28ms
+ GET / 200 in 21ms (next.js: 10ms, application-code: 12ms)
+✓ Compiled in 64ms
+ GET / 200 in 11ms (next.js: 3ms, application-code: 8ms)
+✓ Compiled in 45ms
+ GET / 200 in 21ms (next.js: 2ms, application-code: 18ms)
+✓ Compiled in 46ms
+[browser] Uncaught ReferenceError: Sparkles is not defined
+    at eval (src/components/history/HistoryView.tsx:229:26)
+    at Array.map (<anonymous>)
+    at HistoryView (src/components/history/HistoryView.tsx:195:36)
+    at renderActiveView (src/app/page.tsx:39:16)
+    at Home (src/app/page.tsx:65:14)
+  227 |                     <td className="py-3.5 px-4 whitespace-nowrap min-w-[120px]">
+  228 |                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs">
+> 229 |                         <Sparkles className="w-3 h-3 text-emerald-700" />
+      |                          ^
+  230 |                         {(item.overall_confidence * 100).toFixed(0)}%
+  231 |                       </span>
+  232 |                     </td>
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET / 200 in 34ms (next.js: 2ms, application-code: 31ms)
+✓ Compiled in 52ms
+ GET / 200 in 15ms (next.js: 5ms, application-code: 10ms)
+✓ Compiled in 37ms
+ GET / 200 in 18ms (next.js: 6ms, application-code: 12ms)
+✓ Compiled in 40ms
+ GET / 200 in 13ms (next.js: 3ms, application-code: 10ms)
+✓ Compiled in 39ms
+ GET / 200 in 8ms (next.js: 2.0ms, application-code: 6ms)
+✓ Compiled in 25ms
+ GET / 200 in 10ms (next.js: 2ms, application-code: 8ms)
+✓ Compiled in 45ms
+ GET / 200 in 11ms (next.js: 3ms, application-code: 8ms)
+✓ Compiled in 44ms
+ GET / 200 in 10ms (next.js: 2ms, application-code: 8ms)
+✓ Compiled in 35ms
+ GET / 200 in 20ms (next.js: 5ms, application-code: 14ms)
+✓ Compiled in 45ms
+ GET / 200 in 16ms (next.js: 3ms, application-code: 13ms)
+✓ Compiled in 36ms
+ GET / 200 in 12ms (next.js: 3ms, application-code: 10ms)
+✓ Compiled in 35ms
+ GET / 200 in 41ms (next.js: 4ms, application-code: 37ms)
+ GET / 200 in 23ms (next.js: 1.5ms, application-code: 21ms)
+ GET / 200 in 18ms (next.js: 1.2ms, application-code: 17ms)
+ GET / 200 in 20ms (next.js: 1.4ms, application-code: 19ms)
+ GET / 200 in 19ms (next.js: 3ms, application-code: 16ms)
+✓ Compiled in 46ms
+ GET / 200 in 15ms (next.js: 3ms, application-code: 12ms)
+✓ Compiled in 47ms
+ GET / 200 in 11ms (next.js: 3ms, application-code: 8ms)
+✓ Compiled in 43ms
+ GET / 200 in 14ms (next.js: 3ms, application-code: 11ms)
+✓ Compiled in 62ms
+ GET / 200 in 8ms (next.js: 1.9ms, application-code: 6ms)
+✓ Compiled in 28ms
+ GET / 200 in 11ms (next.js: 3ms, application-code: 9ms)
+✓ Compiled in 29ms

@@ -386,6 +386,17 @@ func (p *ExcelParser) GenerateStandardExcel(templateName string, mappings []mode
 				continue
 			}
 
+			// Validate mandatory identifier: FUND_NAME must be present
+			if fnSrcIdx, ok := targetToSourceIndex["FUND_NAME"]; ok {
+				fnVal := ""
+				if fnSrcIdx >= 0 && fnSrcIdx < len(srcRow) {
+					fnVal = strings.TrimSpace(srcRow[fnSrcIdx])
+				}
+				if fnVal == "" || fnVal == "-" || strings.ToLower(fnVal) == "null" {
+					continue // Skip invalid transaction rows without Fund Name
+				}
+			}
+
 			for colIdx, targetH := range targetHeaders {
 				cellName, _ := excelize.CoordinatesToCellName(colIdx+1, outputRowIndex)
 				srcColIdx, found := targetToSourceIndex[targetH]

@@ -24,6 +24,7 @@ export const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({
   const [name, setName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [version, setVersion] = useState<string>('2.0');
+  const [aiTrainingHints, setAiTrainingHints] = useState<string>('');
   const [fields, setFields] = useState<TargetField[]>([]);
 
   useEffect(() => {
@@ -31,11 +32,13 @@ export const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({
       setName(initialTemplate.name || '');
       setDescription(initialTemplate.description || '');
       setVersion(initialTemplate.version || '2.0');
+      setAiTrainingHints(initialTemplate.ai_training_hints || '');
       setFields(initialTemplate.fields || []);
     } else {
       setName('');
       setDescription('');
       setVersion('1.0');
+      setAiTrainingHints('คำค้นหา / คีย์เวิร์ดประจำไฟล์ (เช่น CUSTODIAN, TRADE, SETTLEMENT, NAV, BANK STATEMENT, BOND, EMAIL) เพื่อช่วยให้ AI เลือก Template นี้อัตโนมัติ');
       setFields([
         { id: 'tf_1', name: 'FUND_CODE', data_type: 'String', required: true, format: '-', description: 'รหัสอ้างอิงกองทุนรวม' },
         { id: 'tf_2', name: 'FUND_NAME', data_type: 'String', required: true, format: '-', description: 'ชื่อกองทุนรวมทางการ' },
@@ -90,6 +93,7 @@ export const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({
       field_count: fields.length,
       status: 'Active',
       updated_at: new Date().toLocaleDateString('th-TH'),
+      ai_training_hints: aiTrainingHints.trim(),
       fields: fields.map((f) => ({
         ...f,
         name: f.name.trim().toUpperCase(),
@@ -154,11 +158,11 @@ export const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({
             <div className="flex items-center gap-2.5">
               <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 animate-pulse" />
               <span>
-                <strong>สรุปก่อนเพิ่ม:</strong> ระบบ AI วิเคราะห์โครงสร้างฟิลด์ให้เรียบร้อยแล้ว ({fields.length} ฟิลด์) — คุณสามารถแก้ไขชื่อ คำอธิบาย ประเภทข้อมูล รูปแบบ กำหนดบังคับ/ทางเลือก หรือลบ/เพิ่มฟิลด์ได้ก่อนกดบันทึกจริง
+                <strong>สรุปการอ่านข้อมูลจากไฟล์จริง:</strong> AI ได้สแกนคอลัมน์และค่าข้อมูลที่อ่านได้จริงจากไฟล์ปัจจุบัน ({fields.length} คอลัมน์) พร้อมแนะนำชื่อและประเภทข้อมูลที่เหมาะสมในแต่ละฟิลด์ — คุณสามารถปรับแก้ชื่อ กำหนดบังคับ/ทางเลือก หรือลบ/เพิ่มฟิลด์ได้ก่อนกดบันทึกจริง
               </span>
             </div>
             <span className="font-extrabold text-purple-950 bg-purple-100 border border-purple-200 px-2.5 py-0.5 rounded-lg text-[11px] font-mono">
-              รวม {fields.length} ฟิลด์มาตรฐาน
+              รวม {fields.length} ฟิลด์สกัดจากไฟล์จริง
             </span>
           </div>
         )}
@@ -205,6 +209,23 @@ export const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({
                 placeholder="2.0"
                 className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600"
               />
+            </div>
+
+            <div className="md:col-span-3 bg-purple-50/80 p-3 rounded-xl border border-purple-200">
+              <label className="block text-xs font-extrabold text-purple-950 mb-1 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-purple-700" />
+                <span>ข้อมูลช่วย AI ในการเทรนคัดเลือก Template (AI Classification & Training Hints)</span>
+              </label>
+              <input
+                type="text"
+                value={aiTrainingHints}
+                onChange={(e) => setAiTrainingHints(e.target.value)}
+                placeholder="เช่น คีย์เวิร์ดประจำไฟล์ (CUSTODIAN, TRADE, NAV, STATEMENT, BOND, EMAIL), ชื่อคอลัมน์ หรือเงื่อนไข AI Classification"
+                className="w-full text-xs p-2.5 bg-white border border-purple-300 rounded-xl focus:outline-none focus:border-purple-600 font-medium text-purple-950"
+              />
+              <p className="text-[10px] text-purple-700 mt-1">
+                ข้อความส่วนนี้จะถูกใช้เป็น AI Training Prompt เพื่อช่วยให้ระบบเลือกรุ่น Template นี้ให้อัตโนมัติเมื่อมีการอัปโหลดไฟล์ตรงกับคีย์เวิร์ด
+              </p>
             </div>
           </div>
 
@@ -313,6 +334,14 @@ export const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
+
+                  {/* AI Reason Per Field */}
+                  {f.ai_reason && (
+                    <div className="w-full bg-purple-50/80 border border-purple-200 text-purple-950 px-3 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-2 mt-1 ml-9">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-700 flex-shrink-0" />
+                      <span><strong>AI Reason:</strong> {f.ai_reason}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

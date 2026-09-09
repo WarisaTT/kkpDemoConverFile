@@ -16,10 +16,13 @@ import {
   Plus,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
   ArrowRight
 } from 'lucide-react';
-import { useProcessStore } from '@/store/useProcessStore';
-import { FieldMapping, AILearnedRule } from '@/types';
+import { useProcessStore, calculateFieldMappingConfidence, getAiDerivedFieldValue, matchTargetToSourceField, generateAiRecommendedTemplateFromFile, checkAllSheetsVerification } from '@/store/useProcessStore';
+import { FieldMapping, AILearnedRule, TargetTemplate } from '@/types';
+import { FullScreenStep2ConfirmationModal } from './FullScreenStep2ConfirmationModal';
+import { CreateTemplateModal } from '../templates/CreateTemplateModal';
 
 
 // Top-level module helper so it is always available without hoisting/closure errors
@@ -57,49 +60,8 @@ export function getSourceFieldSample(
     return foundM.source_sample;
   }
 
-  // 3. Fallback mock values
-  const mockDict: Record<string, string> = {
-    PolicyFund: 'KKP Equity Fund',
-    'Txn Date': '17.08.2026',
-    'Ccy Code': 'THB',
-    'Price Per Unit': '10.3906',
-    'No. of Units': '2,500',
-    'Net Amount': '25,976.50',
-    'Dealer Code': 'SCBS',
-    'Fund Class': 'Equity',
-    Fund_Name: 'KKP Short Term Fixed Income Fund',
-    Fund: 'Thai Equity Opportunity Fund',
-    'Fund Name': 'Emerging Market Equity Fund',
-    Fund_Code: 'F1000',
-    'Fund Identifier': 'FID-2000',
-    'Trade Date': '15/07/2026',
-    Transaction_Date: '2026-07-21',
-    Date: '18-Aug-2026',
-    'Settlement Date': '17/07/2026',
-    Settle_Date: '2026-07-23',
-    'Value Date': '19-Aug-2026',
-    CCY: 'THB',
-    Currency: 'Thai Baht',
-    'Currency Code': 'THB',
-    NAV: '14.1718',
-    'Net Asset Value': '10.0047',
-    'Unit Price': '14.2377',
-    Qty: '2,500',
-    Quantity: '2500.0000',
-    Units: '10,000',
-    Amount: '35,429.50',
-    'Trade Amount': '25,012 THB',
-    'Total Value': '142,377 THB',
-    Broker: 'BLS',
-    Broker_Code: 'YUANTA',
-    'Broker Name': 'Kiatnakin Phatra Securities',
-    'Fund Type': 'Fixed Income',
-    'Asset_Class': 'Fixed Income',
-    'Product_Type': 'Fixed Income',
-    Category: 'Money Market',
-  };
-
-  return mockDict[sf] || '';
+  // If no data found in actual rows, return empty (never guess fake values)
+  return '';
 }
 
 export const STANDARD_KKP_TARGET_FIELDS = [
@@ -160,6 +122,8 @@ export const MappingTableSection: React.FC = () => {
   const {
     checkedFieldIds = {},
     process,
+    templates,
+    switchTemplate,
     selectedMapping,
     openDrawer,
     confidenceFilter,
@@ -177,10 +141,22 @@ export const MappingTableSection: React.FC = () => {
     confirmAllMappings,
     setCurrentStep,
     updateProcessStep,
+    aiLearnedRules = [],
+    addLearnedRule,
   } = useProcessStore();
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [confirmedSuccessMsg, setConfirmedSuccessMsg] = useState<string | null>(null);
+  const [aiTrainedAlert, setAiTrainedAlert] = useState<{ source: string; target: string } | null>(null);
+  const [isFullScreenConfirmOpen, setIsFullScreenConfirmOpen] = useState<boolean>(false);
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (aiTrainedAlert) {
+      const timer = setTimeout(() => setAiTrainedAlert(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [aiTrainedAlert]);
 
   const [isSchemaModalOpen, setIsSchemaModalOpen] = useState<boolean>(false);
 
@@ -192,38 +168,50 @@ export const MappingTableSection: React.FC = () => {
     ? activeSheetName
     : availableSheets[0];
 
-  // Extract all original source column headers directly from uploaded raw file/sheet
+  const activeTemplate = React.useMemo(() => {
+    return templates.find((t) => t.id === process?.target_template_id || t.name === process?.target_template) || templates[0];
+  }, [templates, process]);
+
+  const activeTargetFields = React.useMemo(() => {
+    return activeTemplate?.fields && activeTemplate.fields.length > 0 ? activeTemplate.fields : STANDARD_KKP_TARGET_FIELDS;
+  }, [activeTemplate]);
+
+  // Extract ONLY original source column headers directly from uploaded raw file/sheet
   const availableSourceFields: string[] = React.useMemo(() => {
-    const list: string[] = [];
-
-    // 1. Original sheet headers
-    const sheetHeaders = process?.sheetDataMap?.[currentActiveSheet]?.headers || [];
-    sheetHeaders.forEach((h) => {
-      if (h && !list.includes(h)) list.push(h);
-    });
-
-    // 2. Original sheet rows keys
-    const sheetRows = process?.sheetDataMap?.[currentActiveSheet]?.rows || [];
-    if (sheetRows.length > 0) {
-      Object.keys(sheetRows[0] || {}).forEach((k) => {
-        if (k && k !== 'id' && k !== 'sheetName' && k !== 'isEdited' && !list.includes(k)) {
-          list.push(k);
-        }
-      });
+    // 1. If original sheet headers exist directly from Excel extraction, use them!
+    const sheetHeaders = process?.sheetDataMap?.[currentActiveSheet]?.headers;
+    if (sheetHeaders && sheetHeaders.length > 0) {
+      return sheetHeaders;
     }
 
-    // 3. Mappings source fields
+    const targetNames = new Set((activeTargetFields || []).map((tf) => tf.name.toUpperCase()));
+    const list: string[] = [];
+
+    // 2. Mappings source fields (excluding UNMATCHED and target template fields)
     const sheetMappings = process?.sheetDataMap?.[currentActiveSheet]?.mappings || process?.mappings || [];
     sheetMappings.forEach((m) => {
-      if (m.source_field && m.source_field !== 'UNMATCHED' && !list.includes(m.source_field)) {
+      if (
+        m.source_field &&
+        m.source_field !== 'UNMATCHED' &&
+        !targetNames.has(m.source_field.toUpperCase()) &&
+        !list.includes(m.source_field)
+      ) {
         list.push(m.source_field);
       }
     });
 
-    // 4. Extracted records keys
-    if (process?.extractedRecords && process.extractedRecords.length > 0) {
-      Object.keys(process.extractedRecords[0] || {}).forEach((k) => {
-        if (k && k !== 'id' && k !== 'sheetName' && k !== 'isEdited' && !list.includes(k)) {
+    // 3. Original sheet rows keys (excluding augmented target fields)
+    const sheetRows = process?.sheetDataMap?.[currentActiveSheet]?.rows || [];
+    if (sheetRows.length > 0) {
+      Object.keys(sheetRows[0] || {}).forEach((k) => {
+        if (
+          k &&
+          k !== 'id' &&
+          k !== 'sheetName' &&
+          k !== 'isEdited' &&
+          !targetNames.has(k.toUpperCase()) &&
+          !list.includes(k)
+        ) {
           list.push(k);
         }
       });
@@ -233,7 +221,7 @@ export const MappingTableSection: React.FC = () => {
       return ['Fund_Name', 'Fund_Code', 'Trade Date', 'Settlement Date', 'CCY', 'NAV', 'Qty', 'Amount', 'Broker_Code'];
     }
     return list;
-  }, [process, currentActiveSheet]);
+  }, [process, currentActiveSheet, activeTargetFields]);
 
   // Helper to get sample value for any source field before and after selection
   const getFieldSample = (sf: string) => getSourceFieldSample(sf, process, currentActiveSheet);
@@ -242,45 +230,151 @@ export const MappingTableSection: React.FC = () => {
     const currentMappings = process?.sheetDataMap?.[currentActiveSheet]?.mappings || process?.mappings || [];
     const firstRow = process?.sheetDataMap?.[currentActiveSheet]?.rows?.[0] || process?.extractedRecords?.[0];
 
-    return STANDARD_KKP_TARGET_FIELDS.map((tf) => {
+    return activeTargetFields.map((tf, idx) => {
       const match = currentMappings.find(
         (m) => m.target_field && m.target_field.trim().toUpperCase() === tf.name.toUpperCase()
       );
 
       if (match && match.source_field && match.source_field !== 'UNMATCHED') {
-        const liveSample = (firstRow && firstRow[match.source_field] !== undefined && String(firstRow[match.source_field]).trim() !== '')
+        const rawLive = (firstRow && firstRow[match.source_field] !== undefined && String(firstRow[match.source_field]).trim() !== '')
           ? String(firstRow[match.source_field]) 
-          : (getSourceFieldSample(match.source_field) || match.source_sample || '-');
+          : (getSourceFieldSample(match.source_field, process, currentActiveSheet) || '');
+
+        const liveSample = rawLive && rawLive.trim() !== '' ? getAiDerivedFieldValue(tf.name, match.source_field, rawLive, firstRow, 0) : '-';
+        const scoring = calculateFieldMappingConfidence(match.source_field, tf.name, rawLive || liveSample, tf.data_type);
+
+        const isLearned = Boolean(
+          match.is_learned ||
+          (aiLearnedRules || []).some(
+            (r) =>
+              r.is_active &&
+              match.source_field &&
+              r.source_field.trim().toLowerCase() === match.source_field.trim().toLowerCase() &&
+              r.target_field.trim().toUpperCase() === tf.name.toUpperCase()
+          )
+        );
+
+        const isExplicitlyFalse =
+          checkedFieldIds[`${currentActiveSheet}::${tf.name}`] === false ||
+          checkedFieldIds[tf.name] === false ||
+          (match.source_field && (checkedFieldIds[`${currentActiveSheet}::${match.source_field}`] === false || checkedFieldIds[match.source_field] === false));
+
+        const isUserVerified = !isExplicitlyFalse && Boolean(
+          checkedFieldIds[`${currentActiveSheet}::${tf.name}`] ||
+          checkedFieldIds[tf.name] ||
+          (match.source_field && checkedFieldIds[`${currentActiveSheet}::${match.source_field}`]) ||
+          (match.source_field && checkedFieldIds[match.source_field]) ||
+          (match.id && (checkedFieldIds[`${currentActiveSheet}::${match.id}`] || checkedFieldIds[match.id])) ||
+          isLearned ||
+          match.status === 'ACCEPTED'
+        );
+
+        const isMismatch = !isUserVerified && !isLearned && !!scoring.isTypeMismatch;
+        const finalConfidence = isLearned || isUserVerified 
+          ? 1.0 
+          : (isMismatch ? scoring.confidence : scoring.confidence);
+        const finalConfLevel = isLearned || isUserVerified 
+          ? 'High' 
+          : (isMismatch ? 'Low' : scoring.confidenceLevel);
+        const finalStatus = isLearned || isUserVerified 
+          ? 'ACCEPTED' 
+          : (isMismatch ? 'SUGGESTED' : (match.status === 'MODIFIED' ? 'MODIFIED' : 'SUGGESTED'));
 
         return {
           ...match,
+          is_learned: isLearned,
+          confidence: finalConfidence,
+          confidence_level: finalConfLevel,
+          status: finalStatus,
           source_sample: liveSample,
           target_field: tf.name,
           target_data_type: tf.data_type,
           target_required: tf.required,
           target_format: tf.format,
-          reasons: match.reasons || [`จับคู่คอลัมน์ '${match.source_field}' -> ฟิลด์มาตรฐาน '${tf.name}'`],
+          reasons: isLearned
+            ? [`แมชตามกฎความจำที่ผู้ใช้สอน AI (100% AI Trained Rule: ${match.source_field} -> ${tf.name})`]
+            : isUserVerified
+            ? ['ผู้ใช้งานตรวจสอบและยืนยันการจับคู่คอลัมน์นี้แล้ว (100% Verified)']
+            : [scoring.reason || `AI วิเคราะห์ความสอดคล้องกับ '${match.source_field}'`],
         };
       }
 
-      // If no match found, create an UNMATCHED entry for this target field
+      // If no pre-existing match found, run matchTargetToSourceField against availableSourceFields
+      const aiMatch = matchTargetToSourceField(tf.name, availableSourceFields);
+      const isActuallyMatched = aiMatch.matchedCol !== 'UNMATCHED';
+      const chosenCol = isActuallyMatched ? aiMatch.matchedCol : 'UNMATCHED';
+
+      const rawLive = firstRow && isActuallyMatched ? firstRow[chosenCol] : undefined;
+      const derivedSample = isActuallyMatched && rawLive !== undefined && rawLive !== null && String(rawLive).trim() !== '' 
+        ? getAiDerivedFieldValue(tf.name, chosenCol, rawLive, firstRow, 0) 
+        : '-';
+      const scoring = isActuallyMatched ? calculateFieldMappingConfidence(chosenCol, tf.name, rawLive || derivedSample, tf.data_type) : { confidence: 0, confidenceLevel: 'Unmatched' as const, reason: '', isTypeMismatch: false };
+
+      const isLearned = Boolean(
+        isActuallyMatched &&
+        (aiLearnedRules || []).some(
+          (r) =>
+            r.is_active &&
+            r.source_field.trim().toLowerCase() === chosenCol.trim().toLowerCase() &&
+            r.target_field.trim().toUpperCase() === tf.name.toUpperCase()
+        )
+      );
+
+      const isExplicitlyFalse2 =
+        checkedFieldIds[`${currentActiveSheet}::${tf.name}`] === false ||
+        checkedFieldIds[tf.name] === false ||
+        (chosenCol !== 'UNMATCHED' && (checkedFieldIds[`${currentActiveSheet}::${chosenCol}`] === false || checkedFieldIds[chosenCol] === false));
+
+      const isUserVerified = !isExplicitlyFalse2 && Boolean(
+        checkedFieldIds[`${currentActiveSheet}::${tf.name}`] ||
+        checkedFieldIds[tf.name] ||
+        (chosenCol !== 'UNMATCHED' && (checkedFieldIds[`${currentActiveSheet}::${chosenCol}`] || checkedFieldIds[chosenCol])) ||
+        isLearned
+      );
+
+      const isMismatch = !isUserVerified && !isLearned && !!scoring.isTypeMismatch;
+      const finalConfidence = isLearned || isUserVerified
+        ? 1.0
+        : isActuallyMatched
+        ? (isMismatch ? scoring.confidence : scoring.confidence)
+        : 0;
+      const finalConfLevel = isLearned || isUserVerified 
+        ? 'High' 
+        : isActuallyMatched 
+        ? (isMismatch ? 'Low' : scoring.confidenceLevel) 
+        : 'Unmatched';
+      const finalStatus = isLearned || isUserVerified 
+        ? 'ACCEPTED' 
+        : isActuallyMatched 
+        ? (isMismatch ? 'SUGGESTED' : 'SUGGESTED') 
+        : 'UNMATCHED';
+
       return {
         id: `tf_map_${tf.name}`,
         process_id: process?.id || 'proc_demo',
-        source_field: 'UNMATCHED',
-        source_sample: '-',
-        source_data_type: 'Text',
+        source_field: chosenCol,
+        source_sample: derivedSample,
+        source_data_type: tf.data_type === 'Decimal' ? 'Decimal' : tf.data_type === 'Date' ? 'Date' : 'String',
         target_field: tf.name,
         target_data_type: tf.data_type,
         target_required: tf.required,
         target_format: tf.format,
-        confidence: 0.0,
-        confidence_level: 'Unmatched',
-        status: 'UNMATCHED',
-        reasons: [`ยังไม่พบคอลัมน์จากไฟล์อัปโหลดที่ตรงกับฟิลด์มาตรฐาน '${tf.name}'`],
+        is_learned: isLearned,
+        confidence: finalConfidence,
+        confidence_level: finalConfLevel,
+        status: finalStatus,
+        reasons: isLearned
+          ? [`แมชตามกฎความจำที่ผู้ใช้สอน AI (100% AI Trained Rule: ${chosenCol} -> ${tf.name})`]
+          : isUserVerified
+          ? ['ผู้ใช้งานตรวจสอบและยืนยันการจับคู่คอลัมน์นี้แล้ว (100% Verified)']
+          : [
+              isActuallyMatched
+                ? (scoring.reason || aiMatch.reason)
+                : `ไม่พบคอลัมน์ที่สอดคล้องกับ '${tf.name}' ในไฟล์นี้ (Unmatched)`
+            ],
       };
     });
-  }, [process, currentActiveSheet]);
+  }, [process, currentActiveSheet, activeTargetFields, availableSourceFields, activeTemplate, checkedFieldIds, aiLearnedRules]);
 
   // Compute realistic overall AI accuracy and mapping counts
   const matchedRequiredCount = targetFirstMappings.filter((m) => m.target_required && m.source_field !== 'UNMATCHED').length;
@@ -301,39 +395,81 @@ export const MappingTableSection: React.FC = () => {
     }
 
     const filter = confidenceFilter || 'All';
-    if (filter === 'High') return m.confidence >= 0.85 && m.source_field !== 'UNMATCHED';
-    if (filter === 'NeedsReview') return m.confidence < 0.85 && m.source_field !== 'UNMATCHED';
+    if (filter === 'High') return m.confidence >= 0.80 && m.source_field !== 'UNMATCHED';
+    if (filter === 'NeedsReview' || filter === 'Amber') return (m.confidence < 0.80 && m.confidence >= 0.60 && m.source_field !== 'UNMATCHED');
+    if (filter === 'Low') return (m.confidence < 0.60 && m.source_field !== 'UNMATCHED');
     if (filter === 'Unmatched') return m.source_field === 'UNMATCHED' || m.confidence === 0;
 
     return true;
   });
 
-  const highCount = targetFirstMappings.filter((m) => m.confidence >= 0.85 && m.source_field !== 'UNMATCHED').length;
-  const needsReviewCount = targetFirstMappings.filter((m) => m.confidence < 0.85 && m.source_field !== 'UNMATCHED').length;
+  const highCount = targetFirstMappings.filter((m) => m.confidence >= 0.80 && m.source_field !== 'UNMATCHED').length;
+  const needsReviewCount = targetFirstMappings.filter((m) => m.confidence < 0.80 && m.confidence >= 0.60 && m.source_field !== 'UNMATCHED').length;
+  const lowCount = targetFirstMappings.filter((m) => m.confidence < 0.60 && m.source_field !== 'UNMATCHED').length;
   const unmatchedCount = targetFirstMappings.filter((m) => m.source_field === 'UNMATCHED' || m.confidence === 0).length;
+  const unmatchedRatio = totalTargetFields > 0 ? unmatchedCount / totalTargetFields : 0;
+  const isUnmatchedOver40 = unmatchedRatio >= 0.4;
+
+  const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState<boolean>(false);
+
+  const aiExtractedTemplate: TargetTemplate = React.useMemo(() => {
+    return generateAiRecommendedTemplateFromFile(process, currentActiveSheet);
+  }, [process, currentActiveSheet]);
+
+  const isRowVerified = (m: FieldMapping) => {
+    const isExplicitlyFalse = 
+      checkedFieldIds[`${currentActiveSheet}::${m.target_field}`] === false ||
+      checkedFieldIds[m.target_field] === false ||
+      (m.source_field && (checkedFieldIds[`${currentActiveSheet}::${m.source_field}`] === false || checkedFieldIds[m.source_field] === false));
+    if (isExplicitlyFalse) return false;
+
+    return Boolean(
+      checkedFieldIds[`${currentActiveSheet}::${m.target_field}`] ||
+      checkedFieldIds[m.target_field] ||
+      (m.source_field && checkedFieldIds[`${currentActiveSheet}::${m.source_field}`]) ||
+      (m.source_field && checkedFieldIds[m.source_field]) ||
+      (m.id && (checkedFieldIds[`${currentActiveSheet}::${m.id}`] || checkedFieldIds[m.id])) ||
+      m.status === 'ACCEPTED' ||
+      m.is_learned ||
+      (aiLearnedRules || []).some(
+        (r) =>
+          r.is_active &&
+          m.source_field &&
+          m.source_field !== 'UNMATCHED' &&
+          r.source_field.trim().toLowerCase() === m.source_field.trim().toLowerCase() &&
+          r.target_field.trim().toUpperCase() === m.target_field.trim().toUpperCase()
+      )
+    );
+  };
 
   const allIds = targetFirstMappings.map((m) => m.target_field);
-  const checkedCount = allIds.filter((id) => Boolean(checkedFieldIds[id])).length;
+  const checkedCount = targetFirstMappings.filter(isRowVerified).length;
   const isAllVerified = allIds.length > 0 && checkedCount === allIds.length;
+
+  const multiSheetStatus = React.useMemo(() => {
+    return checkAllSheetsVerification(process, templates, checkedFieldIds, currentActiveSheet);
+  }, [process, templates, checkedFieldIds, currentActiveSheet]);
 
   const handleHeaderToggleCheckAll = () => {
     if (isAllVerified) {
-      uncheckAllFields(allIds);
+      uncheckAllFields(allIds, currentActiveSheet);
     } else {
-      checkAllFields(allIds);
+      checkAllFields(allIds, currentActiveSheet);
     }
   };
 
   const selectedMappingsToConfirm = React.useMemo(() => {
-    const checkedTargets = allIds.filter((id) => Boolean(checkedFieldIds[id]));
+    const checkedTargets = targetFirstMappings.filter(isRowVerified).map((m) => m.target_field);
     const targetsToUse = checkedTargets.length > 0 ? checkedTargets : allIds;
     return targetFirstMappings.filter((m) => targetsToUse.includes(m.target_field));
-  }, [allIds, checkedFieldIds, targetFirstMappings]);
+  }, [allIds, targetFirstMappings, checkedFieldIds, currentActiveSheet]);
 
   const handleExecuteConfirmAll = () => {
     const targets = selectedMappingsToConfirm.map((m) => m.target_field);
     confirmAllMappings(targets);
+    checkAllFields(targets, currentActiveSheet);
     setIsConfirmModalOpen(false);
+    setIsFullScreenConfirmOpen(true);
     setConfirmedSuccessMsg(`ยืนยันการจับคู่คอลัมน์มาตรฐานสำเร็จครบ ${targets.length} ฟิลด์แล้ว พร้อมดำเนินการในขั้นตอนถัดไป`);
     setTimeout(() => {
       setConfirmedSuccessMsg(null);
@@ -342,7 +478,38 @@ export const MappingTableSection: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full relative">
-      {/* Top Banner & Visual Accuracy Overview */}
+      {/* AI Recommendation Banner when Unmatched > 40% */}
+      {isUnmatchedOver40 && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-amber-500/15 border-2 border-amber-400 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-md animate-in fade-in">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className="w-11 h-11 bg-amber-100 border border-amber-300 rounded-2xl flex items-center justify-center text-amber-900 flex-shrink-0 shadow-xs">
+              <AlertTriangle className="w-6 h-6 text-amber-600 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h4 className="font-black text-[#2e1d52] text-sm">
+                  AI แนะนำ: ตรวจพบฟิลด์ที่ไม่ตรงกัน (Unmatched) สูงถึง {Math.round(unmatchedRatio * 100)}% (มากกว่า 40%)
+                </h4>
+                <span className="bg-amber-400 text-amber-950 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  AI Recommended Action
+                </span>
+              </div>
+              <p className="text-xs text-slate-700 font-semibold leading-relaxed">
+                โครงสร้างคอลัมน์ในไฟล์นี้แตกต่างจาก Template ปัจจุบันเกิน 40% ({unmatchedCount}/{totalTargetFields} ฟิลด์) AI ได้วิเคราะห์โครงสร้างข้อมูลจริงจากไฟล์ <strong className="text-purple-950 font-bold">{process?.file_name}</strong> (อ่านพบ {availableSourceFields.length} คอลัมน์) และแนะนำให้ <strong>สร้าง Template ใหม่เพิ่ม</strong> โดยระบบจะยึดตามคอลัมน์และค่าข้อมูลที่อ่านได้จริงจากไฟล์ พร้อมคำอธิบาย AI ในแต่ละฟิลด์
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsCreateTemplateOpen(true)}
+            className="bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-slate-950 px-5 py-2.5 rounded-xl text-xs font-black shadow-md flex items-center gap-2 transition cursor-pointer scale-[1.02] flex-shrink-0 border border-amber-300"
+          >
+            <Sparkles className="w-4 h-4 text-purple-950 stroke-[2.5]" />
+            <span>สร้าง Template ใหม่โดยอิงจากข้อมูลไฟล์นี้ ({availableSourceFields.length} คอลัมน์ + AI Reason)</span>
+          </button>
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -364,16 +531,26 @@ export const MappingTableSection: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => setIsSchemaModalOpen(true)}
-            className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-950 rounded-xl text-xs font-extrabold border border-purple-300 transition flex items-center gap-2 shadow-2xs cursor-pointer"
-          >
-            <Eye className="w-4 h-4 text-purple-700" />
-            <span>ดูโครงสร้าง KKP (8 ฟิลด์หลัก)</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsSwitchModalOpen(true)}
+              className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-950 rounded-xl text-xs font-extrabold border border-amber-300 transition flex items-center gap-2 shadow-2xs cursor-pointer"
+              title="หาก AI เลือก Template ผิด คลิกที่นี่เพื่อเลือกเปลี่ยน Template ที่ถูกต้อง"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-amber-700" />
+              <span>Template: <strong className="font-mono">{process?.target_template || 'KKP_CUSTODIAN_TRADE_V2'}</strong> (แก้ไข/เปลี่ยน)</span>
+            </button>
+
+            <button
+              onClick={() => setIsSchemaModalOpen(true)}
+              className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-950 rounded-xl text-xs font-extrabold border border-purple-300 transition flex items-center gap-2 shadow-2xs cursor-pointer"
+            >
+              <Eye className="w-4 h-4 text-purple-700" />
+              <span>ดูโครงสร้าง KKP ({targetFirstMappings.length} ฟิลด์หลัก)</span>
+            </button>
+          </div>
         </div>
 
-        {/* Sheet Tabs Filter */}
         <div className="flex items-center gap-2 pt-3 border-t border-slate-200 overflow-x-auto pb-1">
           <div className="flex items-center gap-1.5 text-slate-700 text-xs font-extrabold mr-2 flex-shrink-0 select-none">
             <Layers className="w-4 h-4 text-purple-700" />
@@ -382,6 +559,8 @@ export const MappingTableSection: React.FC = () => {
 
           {availableSheets.map((sName, idx) => {
             const isActive = currentActiveSheet === sName || (idx === 0 && (!currentActiveSheet || !availableSheets.includes(currentActiveSheet)));
+            const sp = multiSheetStatus.sheetsProgress.find((p) => p.sheetName === sName);
+            const isSheetDone = sp?.isCompleted ?? false;
 
             return (
               <button
@@ -390,24 +569,35 @@ export const MappingTableSection: React.FC = () => {
                 className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition flex items-center gap-2 flex-shrink-0 cursor-pointer ${
                   isActive
                     ? "bg-[#2e1d52] text-white shadow-md scale-[1.01]"
+                    : isSheetDone
+                    ? "bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300"
                 }`}
               >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
+                {isSheetDone ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                ) : (
+                  <FileSpreadsheet className="w-3.5 h-3.5 flex-shrink-0" />
+                )}
                 <span>{sName}</span>
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-lg font-mono ${
-                    isActive ? "bg-purple-800 text-white font-extrabold" : "bg-slate-200 text-slate-800 font-extrabold"
+                    isActive
+                      ? "bg-purple-800 text-white font-extrabold"
+                      : isSheetDone
+                      ? "bg-emerald-200/80 text-emerald-950 font-extrabold"
+                      : "bg-slate-200 text-slate-800 font-extrabold"
                   }`}
                 >
-                  {matchedRequiredCount}/8 ฟิลด์ KKP ({availableSourceFields.length} ฟิลด์ต้นทาง, {process?.extractedRecords?.length || process?.row_count || 43} แถว)
+                  {isSheetDone
+                    ? `✓ ตรวจครบแล้ว (${sp?.total || 8}/${sp?.total || 8})`
+                    : `${sp?.verifiedCount || 0}/${sp?.total || 8} ตรวจแล้ว (${availableSourceFields.length} ฟิลด์ต้นทาง)`}
                 </span>
               </button>
             );
           })}
         </div>
 
-        {/* Filter Bar & Search Input (4 Segmented Controls) */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
             {[
@@ -430,21 +620,61 @@ export const MappingTableSection: React.FC = () => {
             ))}
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-64">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="ค้นหาฟิลด์มาตรฐาน / คอลัมน์ต้นทาง..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-medium"
-            />
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={handleHeaderToggleCheckAll}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition border cursor-pointer ${
+                isAllVerified
+                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300 shadow-2xs'
+                  : 'bg-purple-100 text-purple-950 hover:bg-purple-200 border-purple-300 shadow-2xs'
+              }`}
+              title="คลิกเพื่อเลือกทั้งหมดเพื่อทำเครื่องหมายว่าตรวจสอบความถูกต้องแล้ว"
+            >
+              <CheckCircle2 className={`w-4 h-4 ${isAllVerified ? 'text-emerald-600' : 'text-purple-700'}`} />
+              <span>{isAllVerified ? '✓ ตรวจสอบครบทุกฟิลด์แล้ว (Select All)' : 'Select All เพื่อทำเครื่องหมายว่าตรวจสอบความถูกต้องแล้ว'}</span>
+            </button>
+
+            <div className="relative w-64">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="ค้นหาฟิลด์มาตรฐาน / คอลัมน์ต้นทาง..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-medium"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Success Notification Banner */}
+      {aiTrainedAlert && (
+        <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 text-white p-4 rounded-2xl shadow-xl border border-purple-400/50 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/30 border border-purple-300/40 flex items-center justify-center text-purple-200 flex-shrink-0 shadow-inner">
+              <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+            </div>
+            <div>
+              <div className="font-extrabold text-sm flex items-center gap-2">
+                <span>AI ได้รับการเทรนแล้ว (AI Trained & Rule Memorized)!</span>
+                <span className="bg-amber-400 text-purple-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                  Learned Rule
+                </span>
+              </div>
+              <p className="text-purple-200 text-xs mt-0.5 font-medium">
+                AI จดจำกฎการจับคู่คอลัมน์ <span className="text-white font-bold bg-white/15 px-1.5 py-0.5 rounded">{aiTrainedAlert.source}</span> ➔ <span className="text-amber-300 font-bold bg-white/15 px-1.5 py-0.5 rounded">{aiTrainedAlert.target}</span> เรียบร้อยและจะนำไปจับคู่อัตโนมัติในทุกไฟล์ถัดไป
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setAiTrainedAlert(null)}
+            className="p-1.5 text-purple-200 hover:text-white rounded-lg hover:bg-white/10 transition cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {confirmedSuccessMsg && (
         <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white p-4 rounded-2xl shadow-md border border-emerald-400 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-3.5">
@@ -455,7 +685,7 @@ export const MappingTableSection: React.FC = () => {
               <div className="font-extrabold text-sm flex items-center gap-2">
                 <span>ยืนยันการจับคู่คอลัมน์สำเร็จเรียบร้อย!</span>
                 <span className="bg-white text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                  100% Confirmed
+                  100% CONFIRMED
                 </span>
               </div>
               <p className="text-emerald-100 text-xs mt-0.5 font-medium">
@@ -466,14 +696,11 @@ export const MappingTableSection: React.FC = () => {
 
           <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
             <button
-              onClick={() => {
-                updateProcessStep(3);
-                setCurrentStep(3);
-              }}
-              className="px-4 py-2 bg-white text-emerald-950 hover:bg-emerald-50 rounded-xl text-xs font-black shadow-sm transition flex items-center gap-2 cursor-pointer"
+              onClick={() => setIsFullScreenConfirmOpen(true)}
+              className="px-5 py-2.5 bg-white text-emerald-950 hover:bg-emerald-50 rounded-xl text-xs font-black shadow-lg transition flex items-center gap-2 cursor-pointer scale-[1.02] ring-2 ring-white/50"
             >
               <span>ไปยัง Step 3: ตรวจสอบการจัด Format & ข้อมูล</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </button>
             <button
               onClick={() => setConfirmedSuccessMsg(null)}
@@ -485,7 +712,6 @@ export const MappingTableSection: React.FC = () => {
         </div>
       )}
 
-      {/* Select All & Bulk Action Bar */}
       {checkedCount > 0 && (
         <div className="bg-gradient-to-r from-[#281647] via-[#381f66] to-[#1e1037] text-white p-4 rounded-2xl border border-purple-400/40 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-3.5">
@@ -526,11 +752,10 @@ export const MappingTableSection: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setIsConfirmModalOpen(true)}
+              onClick={() => setIsFullScreenConfirmOpen(true)}
               className="px-4 py-2 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black rounded-xl text-xs shadow-lg hover:shadow-xl transition flex items-center gap-2 cursor-pointer ring-2 ring-emerald-300/40 hover:scale-[1.02]"
             >
               <Check className="w-4 h-4 text-slate-950 stroke-[3]" />
-              <span>ยืนยันทั้งหมดว่าถูกต้องที่ Map Column</span>
             </button>
           </div>
         </div>
@@ -585,9 +810,25 @@ export const MappingTableSection: React.FC = () => {
               {filteredMappings.length > 0 ? (
                 filteredMappings.map((m) => {
                   const targetFieldId = m.target_field;
-                  const isChecked = Boolean(checkedFieldIds[targetFieldId]);
-                  const isSelected = selectedMapping?.target_field === m.target_field;
+                  const isChecked = isRowVerified(m);
+                  const isLearned = Boolean(
+                    m.is_learned ||
+                    (aiLearnedRules || []).some(
+                      (r) =>
+                        r.is_active &&
+                        m.source_field &&
+                        m.source_field !== 'UNMATCHED' &&
+                        r.source_field.trim().toLowerCase() === m.source_field.trim().toLowerCase() &&
+                        r.target_field.trim().toUpperCase() === m.target_field.trim().toUpperCase()
+                    )
+                  );
                   const confPct = Math.round((m.confidence || 0) * 100);
+                  const isSelected = Boolean(
+                    selectedMapping && (
+                      selectedMapping.target_field === m.target_field ||
+                      (m.source_field && m.source_field !== 'UNMATCHED' && selectedMapping.source_field === m.source_field)
+                    )
+                  );
 
                   let confBadge = (
                     <span className="px-2.5 py-0.5 text-[10px] font-extrabold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300 flex items-center gap-1 w-max">
@@ -596,17 +837,47 @@ export const MappingTableSection: React.FC = () => {
                   );
                   let barColor = 'bg-emerald-500';
 
-                  if (m.source_field === 'UNMATCHED' || confPct === 0) {
+                  if (isLearned) {
+                    confBadge = (
+                      <span className="px-2.5 py-0.5 text-[10px] font-black bg-purple-100 text-purple-900 rounded-full border border-purple-300 flex items-center gap-1 w-max shadow-2xs">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-700 flex-shrink-0" />
+                        <span>100% (AI เรียนรู้แล้ว)</span>
+                      </span>
+                    );
+                    barColor = 'bg-purple-600';
+                  } else if (isChecked) {
+                    confBadge = (
+                      <span className="px-2.5 py-0.5 text-[10px] font-black bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300 flex items-center gap-1 w-max shadow-2xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <span>100% (ตรวจสอบแล้ว)</span>
+                      </span>
+                    );
+                    barColor = 'bg-emerald-500';
+                  } else if (m.source_field === 'UNMATCHED' || confPct === 0) {
                     confBadge = (
                       <span className="px-2.5 py-0.5 text-[10px] font-extrabold bg-slate-100 text-slate-600 rounded-full border border-slate-300 flex items-center gap-1 w-max">
-                        <span>ยังไม่จับคู่</span>
+                        <span>ยังไม่จับคู่ (0%)</span>
                       </span>
                     );
                     barColor = 'bg-slate-300';
+                  } else if (confPct <= 30) {
+                    confBadge = (
+                      <span className="px-2.5 py-0.5 text-[10px] font-black bg-rose-100 text-rose-800 rounded-full border border-rose-300 flex items-center gap-1 w-max shadow-2xs">
+                        <span>{confPct}% (ไทป์ไม่ตรง)</span>
+                      </span>
+                    );
+                    barColor = 'bg-rose-500';
+                  } else if (confPct < 60) {
+                    confBadge = (
+                      <span className="px-2.5 py-0.5 text-[10px] font-black bg-amber-100 text-amber-950 rounded-full border border-amber-400 flex items-center gap-1 w-max shadow-2xs">
+                        <span>{confPct}% (ความหมายคลุมเครือ)</span>
+                      </span>
+                    );
+                    barColor = 'bg-amber-500';
                   } else if (confPct < 85) {
                     confBadge = (
-                      <span className="px-2.5 py-0.5 text-[10px] font-extrabold bg-amber-100 text-amber-900 rounded-full border border-amber-300 flex items-center gap-1 w-max">
-                        <span>{confPct}% (ต้องตรวจสอบ)</span>
+                      <span className="px-2.5 py-0.5 text-[10px] font-extrabold bg-amber-50 text-amber-900 rounded-full border border-amber-300 flex items-center gap-1 w-max">
+                        <span>{confPct}% (ปานกลาง)</span>
                       </span>
                     );
                     barColor = 'bg-amber-500';
@@ -615,33 +886,50 @@ export const MappingTableSection: React.FC = () => {
                   return (
                     <tr
                       key={targetFieldId}
-                      className={`transition hover:bg-purple-50/40 ${
-                        isSelected ? 'bg-purple-50/80 border-l-4 border-l-purple-700' : isChecked ? 'bg-emerald-50/30' : ''
+                      className={`transition ${
+                        isSelected
+                          ? 'bg-purple-50/80 border-l-4 border-l-purple-700'
+                          : isChecked
+                          ? 'bg-emerald-50/40 border-l-4 border-l-emerald-500 hover:bg-emerald-50/60'
+                          : 'hover:bg-purple-50/40'
                       }`}
                     >
                       {/* Checkbox */}
                       <td className="py-3.5 px-4 text-center select-none">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleCheckField(targetFieldId)}
-                          className="w-4 h-4 accent-purple-700 cursor-pointer rounded"
-                        />
+                        <div className="flex flex-col items-center justify-center gap-0.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleCheckField(targetFieldId, currentActiveSheet)}
+                            className="w-4 h-4 accent-emerald-600 cursor-pointer rounded"
+                            title={isChecked ? 'ตรวจสอบความถูกต้องแล้ว' : 'ทำเครื่องหมายว่าตรวจสอบแล้ว'}
+                          />
+                        </div>
                       </td>
 
                       {/* Target Field Standard Column */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-extrabold text-slate-900 text-xs">
                             {m.target_field}
                           </span>
-                          {m.target_required ? (
+                          {isChecked ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-black bg-emerald-100 text-emerald-800 rounded-md border border-emerald-300 shadow-2xs">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                              <span>ตรวจสอบแล้ว</span>
+                            </span>
+                          ) : m.target_required ? (
                             <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded border border-rose-200 uppercase">
                               จำเป็น
                             </span>
                           ) : (
                             <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded uppercase">
                               ทางเลือก
+                            </span>
+                          )}
+                          {isChecked && m.target_required && (
+                            <span className="text-[9px] font-bold text-slate-400">
+                              (จำเป็น)
                             </span>
                           )}
                         </div>
@@ -662,10 +950,33 @@ export const MappingTableSection: React.FC = () => {
                               if (val && sample) {
                                 updateSourceSampleValue(val, sample);
                               }
+                              if (val && val !== 'UNMATCHED') {
+                                // Auto-train AI: persist user mapping rule across files
+                                addLearnedRule({
+                                  id: `rule_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                                  column_set_pattern: process?.file_name || 'KKP Excel Format',
+                                  source_field: val,
+                                  target_field: m.target_field.toUpperCase(),
+                                  user_reasoning: `ผู้ใช้จับคู่คอลัมน์ '${val}' เข้ากับ '${m.target_field}' ด้วยตนเอง (AI Trained)`,
+                                  learned_at: new Date().toLocaleDateString('th-TH'),
+                                  is_active: true,
+                                  remember_forever: true,
+                                });
+                                if (!checkedFieldIds[m.target_field]) {
+                                  toggleCheckField(m.target_field);
+                                }
+                                setAiTrainedAlert({ source: val, target: m.target_field });
+                              } else if (!val) {
+                                if (checkedFieldIds[m.target_field]) {
+                                  toggleCheckField(m.target_field);
+                                }
+                              }
                             }}
                             className={`w-full max-w-xs px-2.5 py-1.5 text-xs rounded-xl border font-extrabold transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-600 ${
                               m.source_field === 'UNMATCHED'
                                 ? 'bg-slate-50 text-slate-400 border-slate-300'
+                                : isChecked
+                                ? 'bg-white text-emerald-950 border-emerald-300 shadow-2xs'
                                 : 'bg-white text-purple-950 border-purple-300 shadow-2xs'
                             }`}
                           >
@@ -702,7 +1013,7 @@ export const MappingTableSection: React.FC = () => {
                           <div className="w-28 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div
                               className={`h-full ${barColor} transition-all duration-300`}
-                              style={{ width: `${confPct}%` }}
+                              style={{ width: isChecked ? '100%' : `${confPct}%` }}
                             />
                           </div>
                         </div>
@@ -712,10 +1023,23 @@ export const MappingTableSection: React.FC = () => {
                       <td className="py-3.5 px-4 text-right">
                         <button
                           onClick={() => openDrawer(m)}
-                          className="px-3 py-1.5 text-xs font-extrabold text-purple-900 hover:text-purple-950 bg-purple-50 hover:bg-purple-100 border border-purple-300 rounded-xl transition inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                          className={`px-3 py-1.5 text-xs font-extrabold rounded-xl transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer ${
+                            isChecked
+                              ? 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300'
+                              : 'text-purple-900 hover:text-purple-950 bg-purple-50 hover:bg-purple-100 border border-purple-300'
+                          }`}
                         >
-                          <span>ดูรายละเอียด AI</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
+                          {isChecked ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>ตรวจสอบแล้ว</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>ดูรายละเอียด AI</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </>
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -878,6 +1202,122 @@ export const MappingTableSection: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Create Target Template Modal (AI Auto-Extracted with Reasons) */}
+      <CreateTemplateModal
+        isOpen={isCreateTemplateOpen}
+        onClose={() => setIsCreateTemplateOpen(false)}
+        initialTemplate={aiExtractedTemplate}
+        isAiSaveMode={true}
+        onSaveSuccess={async (savedTmpl) => {
+          await switchTemplate(savedTmpl.id);
+          setIsCreateTemplateOpen(false);
+          setConfirmedSuccessMsg(`สร้างและเปิดใช้งาน Template '${savedTmpl.name}' สำเร็จแล้ว ระบบได้จับคู่ฟิลด์ตามโครงสร้างไฟล์ปัจจุบัน 100%`);
+        }}
+      />
+
+      {/* Full-Screen Multi-Sheet Select All Confirmation Modal */}
+      <FullScreenStep2ConfirmationModal
+        isOpen={isFullScreenConfirmOpen}
+        onClose={() => setIsFullScreenConfirmOpen(false)}
+      />
+
+      {/* Switch Target Template Modal */}
+      {isSwitchModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-3xl p-6 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 border border-amber-300 rounded-xl flex items-center justify-center text-amber-900 font-bold">
+                  <SlidersHorizontal className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-[#2e1d52] text-base">
+                    เลือกและแก้ไข Template เป้าหมาย (Switch Target Template)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    หาก AI จำแนกประเภทเลือก Template ผิด คุณสามารถเลือกเปลี่ยน Template ที่ถูกต้องได้ที่นี่ AI จะทำการ Re-map ฟิลด์ให้อัตโนมัติ
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSwitchModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+              {(templates || []).map((t) => {
+                const isSelected = (process?.target_template_id === t.id) || (process?.target_template === t.name);
+                return (
+                  <div
+                    key={t.id || t.name}
+                    className={`p-4 rounded-xl border transition flex flex-wrap items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'bg-purple-50 border-purple-400 ring-2 ring-purple-400/30'
+                        : 'bg-white border-slate-200 hover:border-purple-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono font-extrabold text-sm text-[#2e1d52]">
+                          {t.name}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                          {t.field_count || t.fields?.length || 8} ฟิลด์
+                        </span>
+                        {isSelected && (
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            ใช้งานอยู่ (Active)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-600 mb-1">{t.description}</p>
+                      {t.ai_training_hints && (
+                        <div className="text-[10px] text-purple-700 font-mono flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-purple-600 flex-shrink-0" />
+                          <span>AI Hints: {t.ai_training_hints}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        uncheckAllFields();
+                        await switchTemplate(t.id);
+                        uncheckAllFields();
+                        setIsSwitchModalOpen(false);
+                        setConfirmedSuccessMsg(`เปลี่ยนเป็น Template "${t.name}" เรียบร้อย! AI ทำการ Re-map ${t.fields?.length || 8} ฟิลด์ให้อัตโนมัติ (รีเซ็ตสถานะการเลือกทั้งหมดเป็น No Select)`);
+                        setTimeout(() => setConfirmedSuccessMsg(null), 5000);
+                      }}
+                      disabled={isSelected}
+                      className={`px-4 py-2 text-xs font-extrabold rounded-xl transition flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                          : 'purple-gradient-btn text-white shadow-md cursor-pointer'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>{isSelected ? 'เลือกใช้งานอยู่' : 'เลือกใช้ Template นี้ & ให้ AI Re-map'}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => setIsSwitchModalOpen(false)}
+                className="px-5 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -889,6 +1329,14 @@ export function ensureAllTargetFieldsPresent(mappings: FieldMapping[]): FieldMap
 
 
 export const SchemaDefinitionModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  const { process, templates } = useProcessStore();
+  const activeTemplate = React.useMemo(() => {
+    return templates.find((t) => t.id === process?.target_template_id || t.name === process?.target_template) || templates[0];
+  }, [templates, process]);
+  const activeTargetFields = React.useMemo(() => {
+    return activeTemplate?.fields && activeTemplate.fields.length > 0 ? activeTemplate.fields : STANDARD_KKP_TARGET_FIELDS;
+  }, [activeTemplate]);
+
   if (!isOpen) return null;
 
   return (
@@ -901,10 +1349,10 @@ export const SchemaDefinitionModal: React.FC<{ isOpen: boolean; onClose: () => v
             </div>
             <div>
               <h3 className="text-base font-extrabold text-[#2e1d52]">
-                โครงสร้างเทมเพลตมาตรฐาน KKP (KKP Target Standard Schema)
+                โครงสร้างเทมเพลตมาตรฐาน KKP ({activeTemplate?.name || 'KKP Target Standard Schema'})
               </h3>
               <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                8 ฟิลด์หลักที่ใช้แปลงไฟล์ข้อมูลธุรกรรมการซื้อขายหลักทรัพย์ของ KKP
+                {activeTargetFields.length} ฟิลด์หลักที่ใช้แปลงไฟล์ข้อมูลตามข้อกำหนดของ KKP
               </p>
             </div>
           </div>
@@ -928,11 +1376,11 @@ export const SchemaDefinitionModal: React.FC<{ isOpen: boolean; onClose: () => v
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {STANDARD_KKP_TARGET_FIELDS.map((tf, idx) => (
-                <tr key={tf.id} className="hover:bg-purple-50/30">
+              {activeTargetFields.map((tf, idx) => (
+                <tr key={tf.id || idx} className="hover:bg-purple-50/30">
                   <td className="py-3 px-3 text-slate-400 font-bold">{idx + 1}</td>
                   <td className="py-3 px-3 font-extrabold text-purple-950">{tf.name}</td>
-                  <td className="py-3 px-3 font-mono text-slate-700">{tf.data_type} ({tf.format})</td>
+                  <td className="py-3 px-3 font-mono text-slate-700">{tf.data_type} ({tf.format || '-'})</td>
                   <td className="py-3 px-3">
                     {tf.required ? (
                       <span className="bg-rose-100 text-rose-800 text-[9px] font-black px-2 py-0.5 rounded border border-rose-200 uppercase">
@@ -944,7 +1392,7 @@ export const SchemaDefinitionModal: React.FC<{ isOpen: boolean; onClose: () => v
                       </span>
                     )}
                   </td>
-                  <td className="py-3 px-3 text-slate-600 text-xs">{tf.description}</td>
+                  <td className="py-3 px-3 text-slate-600 text-xs">{tf.description || '-'}</td>
                 </tr>
               ))}
             </tbody>

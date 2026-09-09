@@ -1,22 +1,36 @@
 'use client';
 
 import React from 'react';
-import { useProcessStore } from '@/store/useProcessStore';
+import { useProcessStore, checkAllSheetsVerification } from '@/store/useProcessStore';
 import { Check, Lock } from 'lucide-react';
 
 export const Stepper: React.FC = () => {
-  const { currentStep, setCurrentStep, process, isAnalyzing } = useProcessStore();
+  const {
+    currentStep,
+    setCurrentStep,
+    process,
+    isAnalyzing,
+    templates = [],
+    checkedFieldIds = {},
+    activeSheetName,
+  } = useProcessStore();
 
   const isStep1Completed = process !== null && !isAnalyzing;
 
   // Once finished in Step 4: "เสร็จแล้วคือเสร็จ ไม่สามารถย้อนกลับไปแก้ไข Step ก่อนหน้าได้"
   const isProcessDone = (process?.status === 'Completed') || currentStep === 4;
 
+  const multiSheetStatus = checkAllSheetsVerification(process, templates, checkedFieldIds, activeSheetName);
+  const isAllSheetsVerified = multiSheetStatus.isAllVerified;
+
   // Step 4 is ONLY accessible if user has confirmed review in Step 3
+  // Step 3 is ONLY accessible if user has verified all sheets in Step 2
   const maxAllowedStep = !process
     ? 1
     : isProcessDone
     ? 4
+    : !isAllSheetsVerified && (process.current_step || 2) < 3
+    ? 2
     : Math.max(Math.min(process.current_step || 2, 3), currentStep);
 
   const steps = [
@@ -32,8 +46,9 @@ export const Stepper: React.FC = () => {
         {steps.map((step, idx) => {
           const isCompleted = step.number === 1 ? isStep1Completed : step.number < currentStep || (isProcessDone && step.number <= 4);
           const isActive = step.number === currentStep;
-          // If finished, previous steps (1, 2, 3) are locked and cannot be navigated back to
-          const isDisabled = isProcessDone ? step.number !== 4 : step.number > maxAllowedStep;
+          // If finished, steps 2 & 3 are locked to preserve audit integrity, but Step 1 (Upload/Change File) remains accessible
+          const isBlockedBySheets = step.number >= 3 && !isAllSheetsVerified && (process?.current_step || 2) < 3;
+          const isDisabled = isProcessDone ? (step.number !== 4 && step.number !== 1) : step.number > maxAllowedStep || isBlockedBySheets;
 
           let badgeStyle = 'bg-slate-100 text-slate-400';
           let labelStyle = 'text-slate-400 font-semibold';
@@ -61,8 +76,8 @@ export const Stepper: React.FC = () => {
                 onClick={() => !isDisabled && setCurrentStep(step.number)}
                 disabled={isDisabled}
                 title={
-                  isProcessDone && step.number < 4
-                    ? 'กระบวนการเสร็จสมบูรณ์แล้ว ไม่สามารถย้อนกลับไปแก้ไขขั้นตอนก่อนหน้าได้ (เสร็จแล้วคือเสร็จ)'
+                  isProcessDone && step.number !== 4 && step.number !== 1
+                    ? 'กระบวนการเสร็จสมบูรณ์แล้ว ไม่สามารถย้อนกลับไปแก้ไขขั้นตอนก่อนหน้าได้ (แต่สามารถคลิกขั้นตอนที่ 1 เพื่อเปลี่ยนไฟล์ใหม่ได้)'
                     : isDisabled
                     ? 'กรุณาดำเนินการขั้นตอนก่อนหน้าให้เสร็จสิ้นก่อน'
                     : `ไปยัง ${step.label}`

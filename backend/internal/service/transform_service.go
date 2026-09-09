@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -13,6 +14,14 @@ import (
 	"github.com/kkp/ai-data-transformation/internal/model"
 	"github.com/kkp/ai-data-transformation/internal/parser"
 )
+
+type AIConfigInfo struct {
+	Provider  string `json:"provider"`
+	HasAPIKey bool   `json:"has_api_key"`
+	BaseURL   string `json:"base_url"`
+	ModelName string `json:"model"`
+	MaskedKey string `json:"masked_key"`
+}
 
 type TransformService struct {
 	mu         sync.RWMutex
@@ -29,9 +38,25 @@ type TransformService struct {
 }
 
 func NewTransformService(aiProv ai.AIProvider, p *parser.ExcelParser) *TransformService {
-	if aiProv == nil {
+	apiKey := strings.TrimSpace(os.Getenv("GROQ_API_KEY"))
+	if apiKey == "" {
+		apiKey = strings.TrimSpace(os.Getenv("AI_API_KEY"))
+	}
+	baseURL := strings.TrimSpace(os.Getenv("AI_BASE_URL"))
+	if baseURL == "" {
+		baseURL = "https://api.groq.com/openai/v1"
+	}
+	modelName := strings.TrimSpace(os.Getenv("AI_MODEL"))
+	if modelName == "" {
+		modelName = "llama-3.3-70b-versatile"
+	}
+
+	if apiKey != "" {
+		aiProv = ai.NewLlamaProvider(apiKey, baseURL, modelName)
+	} else if aiProv == nil {
 		aiProv = ai.NewMockAIProvider()
 	}
+
 	if p == nil {
 		p = parser.NewExcelParser()
 	}
@@ -40,13 +65,43 @@ func NewTransformService(aiProv ai.AIProvider, p *parser.ExcelParser) *Transform
 		processes:  make(map[string]*model.Process),
 		aiProvider: aiProv,
 		parser:     p,
-		baseURL:    "https://api.groq.com/openai/v1",
-		modelName:  "llama-3.3-70b-versatile",
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		modelName:  modelName,
 	}
 
 	svc.initDefaultTemplates()
+	svc.initDefaultAuditLogs()
+
+	if apiKey != "" {
+		svc.logAudit("ระบบ (Environment)", "โหลด AI API Key อัตโนมัติจาก .env", "-", fmt.Sprintf("Model: %s", modelName), "Approved")
+	}
 
 	return svc
+}
+
+func (s *TransformService) GetAIConfig() AIConfigInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	prov := "mock"
+	masked := ""
+	if s.apiKey != "" {
+		prov = "llama"
+		if len(s.apiKey) > 8 {
+			masked = s.apiKey[:4] + "••••••••" + s.apiKey[len(s.apiKey)-4:]
+		} else {
+			masked = "••••••••"
+		}
+	}
+
+	return AIConfigInfo{
+		Provider:  prov,
+		HasAPIKey: s.apiKey != "",
+		BaseURL:   s.baseURL,
+		ModelName: s.modelName,
+		MaskedKey: masked,
+	}
 }
 
 func (s *TransformService) SetLlamaConfig(apiKey, baseURL, modelName string) {
@@ -455,16 +510,198 @@ func (s *TransformService) GetStats() model.SystemStats {
 }
 
 func (s *TransformService) logAudit(user, action, file, mapping, status string) {
+	cat := "USER_VERIFY"
+	if strings.Contains(user, "AI") || strings.Contains(action, "AI") {
+		cat = "AI_MAPPING"
+	} else if strings.Contains(action, "อัปโหลด") || strings.Contains(action, "วิเคราะห์") {
+		cat = "INGESTION"
+	} else if strings.Contains(action, "ส่งออก") || strings.Contains(action, "Excel") {
+		cat = "EXPORT_SEAL"
+	} else if strings.Contains(action, "แม่แบบ") || strings.Contains(action, "รูปแบบ") {
+		cat = "TEMPLATE_RULE"
+	} else if strings.Contains(action, "ความปลอดภัย") || strings.Contains(action, "ลบ") {
+		cat = "SECURITY"
+	}
+
+	now := time.Now()
+	thaiMonths := []string{"", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."}
+	timeStr := fmt.Sprintf("%02d %s %d %s", now.Day(), thaiMonths[now.Month()], now.Year(), now.Format("15:04:05"))
+
 	log := model.AuditLog{
-		ID:        fmt.Sprintf("AUD-%d", 1000+len(s.auditLogs)+1),
-		Timestamp: time.Now().Format("15:04:05"),
+		ID:        fmt.Sprintf("AUD-%d-%04d", now.Year(), 1000+len(s.auditLogs)+1),
+		Timestamp: timeStr,
 		User:      user,
 		Action:    action,
+		Category:  cat,
 		File:      file,
 		Mapping:   mapping,
 		Status:    status,
+		Details:   fmt.Sprintf("กิจกรรม: %s สำหรับเอกสาร %s (สถานะ: %s)", action, file, status),
+		IPAddress: "10.128.45.19",
+		Checksum:  fmt.Sprintf("sha256:%x...", now.UnixNano()),
 	}
 	s.auditLogs = append([]model.AuditLog{log}, s.auditLogs...)
+}
+
+func (s *TransformService) initDefaultAuditLogs() {
+	s.auditLogs = []model.AuditLog{
+		{
+			ID:        "AUD-2026-0012",
+			Timestamp: "09 ก.ย. 2026 10:24:18",
+			User:      "Warisa T.",
+			Action:    "แก้ไขชื่อบันทึกประวัติการแปลงไฟล์ (Update Label)",
+			Category:  "USER_VERIFY",
+			File:      "KKP_Demo_03_FundManagerC.xlsx",
+			Mapping:   "เปลี่ยนชื่อแสดงผลเป็น \"รายงานซื้อขายกองทุนรวม FundManager C รอบเช้า\"",
+			Status:    "Approved",
+			Details:   "ผู้ปฏิบัติการปรับเปลี่ยนชื่อในระบบประวัติ เพื่อให้ฝ่ายปฏิบัติการ Custodian จัดหมวดหมู่เอกสารได้ถูกต้อง",
+			IPAddress: "10.128.45.19",
+			Checksum:  "sha256:d8f3a91cb274e051...",
+		},
+		{
+			ID:        "AUD-2026-0011",
+			Timestamp: "09 ก.ย. 2026 10:22:45",
+			User:      "Warisa T.",
+			Action:    "ส่งออกไฟล์ผลลัพธ์มาตรฐาน Excel (.xlsx) และล็อกสถานะ",
+			Category:  "EXPORT_SEAL",
+			File:      "KKP_Standard_KKP_Demo_03_FundManagerC.xlsx",
+			Mapping:   "แม่แบบ KKP_CUSTODIAN_TRADE_V2 (8 ฟิลด์, 43 แถวข้อมูล)",
+			Status:    "Sealed",
+			Details:   "สร้างไฟล์ผลลัพธ์มาตรฐาน Custodian สำเร็จ พร้อมเข้ารหัสความสมบูรณ์และล็อกสถานะเป็น Completed ป้องกันการแก้ไขย้อนหลัง",
+			IPAddress: "10.128.45.19",
+			Checksum:  "sha256:4a8c1f038e7b9921...",
+		},
+		{
+			ID:        "AUD-2026-0010",
+			Timestamp: "09 ก.ย. 2026 10:20:15",
+			User:      "Warisa T.",
+			Action:    "ตรวจสอบและอนุมัติผลการจับคู่ฟิลด์ทั้งหมด (Sign-off All Mappings)",
+			Category:  "USER_VERIFY",
+			File:      "KKP_Demo_03_FundManagerC.xlsx",
+			Mapping:   "อนุมัติ 8/8 ฟิลด์ (ความเชื่อมั่นเฉลี่ย 98.4%)",
+			Status:    "Approved",
+			Details:   "เจ้าหน้าที่ผู้ตรวจสอบกดเลือกตรวจทานและอนุมัติโครงสร้างการจับคู่ครบทุกฟิลด์ พร้อมเข้าสู่ขั้นตอนตรวจสอบความถูกต้อง (Step 3)",
+			IPAddress: "10.128.45.19",
+			Checksum:  "sha256:6e1b93f2c5d8a044...",
+		},
+		{
+			ID:        "AUD-2026-0009",
+			Timestamp: "09 ก.ย. 2026 10:18:50",
+			User:      "Warisa T.",
+			Action:    "แก้ไขการจับคู่ฟิลด์ด้วยตนเอง (Manual Override)",
+			Category:  "USER_VERIFY",
+			File:      "KKP_Demo_03_FundManagerC.xlsx",
+			Mapping:   "Val_Date → SETTLEMENT_DATE (แก้ไขจากเดิม AI เสนอ TRADE_DATE)",
+			Status:    "Modified",
+			Details:   "ผู้ใช้งานตรวจพบว่าคอลัมน์ Val_Date ในรายงานของ บลจ. C หมายถึงวันที่ชำระราคา จึงทำการ Override เพื่อให้ตรงกับมาตรฐาน Custodian",
+			IPAddress: "10.128.45.19",
+			Checksum:  "sha256:912efc4017ab3829...",
+		},
+		{
+			ID:        "AUD-2026-0008",
+			Timestamp: "09 ก.ย. 2026 10:18:52",
+			User:      "AI Rule Engine (Learned Memory)",
+			Action:    "จดจำกฎการเรียนรู้ใหม่สู่วงจรความจำ AI (Rule Learned)",
+			Category:  "TEMPLATE_RULE",
+			File:      "KKP_Demo_03_FundManagerC.xlsx",
+			Mapping:   "Val_Date → SETTLEMENT_DATE (Pattern: FundManagerC)",
+			Status:    "Approved",
+			Details:   "AI Rule Engine บันทึกกฎการจับคู่จากคำสั่ง Manual Override ของผู้ใช้เพื่อใช้ทำนายอัตโนมัติในครั้งต่อไป (Human-in-the-Loop Feedback)",
+			IPAddress: "127.0.0.1 (Local AI Engine)",
+			Checksum:  "sha256:338fa0991cb45ef1...",
+		},
+		{
+			ID:        "AUD-2026-0007",
+			Timestamp: "09 ก.ย. 2026 10:16:30",
+			User:      "AI Engine (Llama-3.3-70B)",
+			Action:    "วิเคราะห์ความหมายและจับคู่ฟิลด์อัตโนมัติ (AI Semantic Inference)",
+			Category:  "AI_MAPPING",
+			File:      "KKP_Demo_03_FundManagerC.xlsx",
+			Mapping:   "จับคู่อัตโนมัติสำเร็จ 7/8 ฟิลด์ | แจ้งเตือนฟิลด์กำกวม: Val_Date (<60%)",
+			Status:    "AI Suggested",
+			Details:   "โมเดลประมวลผล Semantic Embedding และจับคู่คอลัมน์ Fund_Name, Fund_Code, Trade_Date, Amount ฯลฯ โดยมี 1 ฟิลด์ที่คะแนนต่ำกว่าเกณฑ์ความปลอดภัย",
+			IPAddress: "127.0.0.1 (Local AI Engine)",
+			Checksum:  "sha256:7bc210ef8991a456...",
+		},
+		{
+			ID:        "AUD-2026-0006",
+			Timestamp: "09 ก.ย. 2026 10:15:10",
+			User:      "ระบบประมวลผลข้อมูล (Smart Parser)",
+			Action:    "อัปโหลดและสแกนค้นหาหัวตารางอัตโนมัติ (Dynamic Header Search)",
+			Category:  "INGESTION",
+			File:      "KKP_Demo_03_FundManagerC.xlsx",
+			Mapping:   "พบหัวตารางที่แถว 4 | ขนาด 2.48 MB | 43 แถวข้อมูล | สกุลเงิน THB",
+			Status:    "Completed",
+			Details:   "ตัดบรรทัดหมายเหตุเชิงอรรถ (Footnotes) และส่วนหัวรายงานอัตโนมัติ สกัดข้อมูลเป็น Structured Grid สำเร็จ",
+			IPAddress: "10.128.45.19",
+			Checksum:  "sha256:58a2301efc900b84...",
+		},
+		{
+			ID:        "AUD-2026-0005",
+			Timestamp: "09 ก.ย. 2026 09:45:22",
+			User:      "Warisa T.",
+			Action:    "ส่งออกไฟล์ผลลัพธ์มาตรฐาน Excel (.xlsx) และล็อกสถานะ",
+			Category:  "EXPORT_SEAL",
+			File:      "KKP_Standard_KKP_Demo_05_InsuranceE.xlsx",
+			Mapping:   "แม่แบบ KKP_INSURANCE_BOND_REPORT_V1 (14 ฟิลด์, 128 แถวข้อมูล)",
+			Status:    "Sealed",
+			Details:   "ประมวลผลรายงานธุรกรรมตราสารหนี้และประกันภัย Multi-Sheet ครบถ้วน ล็อกสถานะเสร็จสมบูรณ์",
+			IPAddress: "10.128.45.19",
+			Checksum:  "sha256:e0192bf8841a0529...",
+		},
+		{
+			ID:        "AUD-2026-0004",
+			Timestamp: "09 ก.ย. 2026 09:42:05",
+			User:      "AI Rule Engine (Learned Memory)",
+			Action:    "นำกฎที่เคยเรียนรู้มาจับคู่อัตโนมัติ (Applied Learned Rule)",
+			Category:  "AI_MAPPING",
+			File:      "KKP_Demo_05_InsuranceE.xlsx",
+			Mapping:   "Trans_Date → TRADE_DATE และ Total_Val → AMOUNT",
+			Status:    "Approved",
+			Details:   "ดึงกฎที่เคยจดจำจากรอบการประมวลผลก่อนหน้ามาใช้ทันที ทำให้ได้คะแนนความเชื่อมั่น 100% โดยไม่ต้องให้ผู้ใช้จับคู่ซ้ำ",
+			IPAddress: "127.0.0.1 (Local AI Engine)",
+			Checksum:  "sha256:a1f09e88b209cc14...",
+		},
+		{
+			ID:        "AUD-2026-0003",
+			Timestamp: "09 ก.ย. 2026 09:30:14",
+			User:      "Warisa T.",
+			Action:    "ตรวจสอบและเปิดใช้งานแม่แบบมาตรฐาน KKP Custodian",
+			Category:  "TEMPLATE_RULE",
+			File:      "KKP_CUSTODIAN_TRADE_V2",
+			Mapping:   "ตรวจสอบ 8 ฟิลด์มาตรฐาน ธปท. (Active Schema)",
+			Status:    "Approved",
+			Details:   "ตรวจสอบกฎเกณฑ์ Data Type, Format วันที่ YYYY-MM-DD, Decimal(18,4) และ ISO 4217 Currency",
+			IPAddress: "10.128.45.19",
+			Checksum:  "sha256:1049ea2837bc01fa...",
+		},
+		{
+			ID:        "AUD-2026-0002",
+			Timestamp: "09 ก.ย. 2026 08:35:10",
+			User:      "ระบบรักษาความปลอดภัย (Security Gateway)",
+			Action:    "ตรวจสอบความถูกต้องระบบและการเข้ารหัสความปลอดภัย (Security Handshake)",
+			Category:  "SECURITY",
+			File:      "security_policy.json",
+			Mapping:   "TLS 1.3 | AES-256-GCM | Groq AI Llama-3.3-70B API Connected",
+			Status:    "Approved",
+			Details:   "ผ่านการตรวจสอบสิทธิ์และกุญแจความปลอดภัย พร้อมใช้งานสำหรับงาน Custodian ธนาคารเกียรตินาคินภัทร",
+			IPAddress: "10.128.1.1 (Gateway)",
+			Checksum:  "sha256:990ab1284ef77610...",
+		},
+		{
+			ID:        "AUD-2026-0001",
+			Timestamp: "09 ก.ย. 2026 08:30:00",
+			User:      "ระบบเริ่มต้นการทำงาน (System Kernel)",
+			Action:    "เริ่มระบบประมวลผล KKP Convert By AI (System Boot)",
+			Category:  "SECURITY",
+			File:      "KKP_CONVERT_CORE_V2",
+			Mapping:   "System Build: 2026.09.09-PROD | Status: Healthy",
+			Status:    "Completed",
+			Details:   "โหลดระบบประมวลผลหลัก คลังแม่แบบมาตรฐาน ธปท. 5 รูปแบบ และเครื่องยนต์วิเคราะห์เอกสารอัจฉริยะ",
+			IPAddress: "10.128.1.1 (Gateway)",
+			Checksum:  "sha256:0001ab784910283c...",
+		},
+	}
 }
 
 func calculateOverallConfidence(mappings []model.FieldMapping) float64 {

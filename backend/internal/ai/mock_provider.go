@@ -55,37 +55,55 @@ func (m *MockAIProvider) MatchFields(ctx context.Context, processID string, sour
 
 			switch tf.Name {
 			case "FUND_NAME":
-				if containsAny(sfLower, "fund_name", "fund name", "scheme_name", "portfolio_name", "fund_desc", "fund desc") || sfLower == "fund" {
+				if sfLower == "fund" {
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.98
+					confidence = 0.54
 					reasons = []string{
-						fmt.Sprintf("ชื่อคอลัมน์ '%s' ตรงกับฟิลด์มาตรฐาน '%s'", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูลจากไฟล์: '%s'", sf.SampleVal),
-						"ผ่านการวิเคราะห์ AI ตามข้อกำหนดมาตรฐาน KKP",
+						fmt.Sprintf("ความหมายคลุมเครือ (Ambiguous 54%% < 60%%): คำว่า '%s' เป็นคำกว้างทั่วไป อาจหมายถึงชื่อกองทุน รหัส หรือประเภทพอร์ต", sfClean),
+					}
+				} else if containsAny(sfLower, "fund_name", "fund name", "scheme_name", "portfolio_name", "fund_desc", "fund desc") {
+					bestMatchSource = sfClean
+					bestSample = sf.SampleVal
+					bestDataType = sf.DataType
+					confidence = 0.907
+					reasons = []string{
+						fmt.Sprintf("วิเคราะห์บริบทการเงิน (Semantic Match 97%%): คอลัมน์ '%s' หมายถึงชื่อพอร์ตลงทุน/กองทุนรวม ตรงกับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 25%%) | รูปแบบข้อมูล (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 97% × 0.6) + (Pattern 100% × 0.3) + (Text 25% × 0.1) = 90.7%",
 					}
 				}
 			case "FUND_CODE":
-				if containsAny(sfLower, "fund_code", "fund code", "fund identifier", "fund id", "fid", "fund_id", "security_code", "fund symbol", "fund_symbol") {
+				if containsAny(sfLower, "fund_code", "fund code", "fund identifier", "fund id", "fid", "fund_id", "security_code", "fund symbol", "fund_symbol", "isin") {
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.97
+					confidence = 0.902
 					reasons = []string{
-						fmt.Sprintf("ชื่อคอลัมน์ '%s' ตรงกับรหัสอ้างอิงกองทุน '%s'", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูลจากไฟล์: '%s'", sf.SampleVal),
+						fmt.Sprintf("วิเคราะห์บริบทการเงิน (Semantic Match 97%%): รหัสอ้างอิงสากล '%s' (ISIN/Fund ID) เทียบเท่ากับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 20%%) | รูปแบบข้อมูล (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 97% × 0.6) + (Pattern 100% × 0.3) + (Text 20% × 0.1) = 90.2%",
 					}
 				}
 			case "TRADE_DATE":
-				if containsAny(sfLower, "trade date", "trade_date", "transaction_date", "trans_date", "trade dt", "order_date", "order date", "txn date", "txn_date") || (strings.Contains(sfLower, "date") && !strings.Contains(sfLower, "settle") && !strings.Contains(sfLower, "value")) {
+				if containsAny(sfLower, "trade date", "trade_date", "transaction_date", "trans_date", "trade dt", "order_date", "order date", "txn date", "txn_date") {
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.95
+					confidence = 0.900
 					reasons = []string{
-						fmt.Sprintf("คอลัมน์วันที่ทำรายการ '%s' ตรงกับ '%s'", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูล: '%s' (แปลงเป็น YYYY-MM-DD)", sf.SampleVal),
+						fmt.Sprintf("วิเคราะห์บริบทการเงิน (Semantic Match 95%%): วันที่ส่งคำสั่งซื้อขาย '%s' ตรงกับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 30%%) | รูปแบบข้อมูล (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 95% × 0.6) + (Pattern 100% × 0.3) + (Text 30% × 0.1) = 90.0%",
+					}
+				} else if sfLower == "date" || (strings.Contains(sfLower, "date") && !strings.Contains(sfLower, "settle") && !strings.Contains(sfLower, "value")) {
+					bestMatchSource = sfClean
+					bestSample = sf.SampleVal
+					bestDataType = sf.DataType
+					confidence = 0.52
+					reasons = []string{
+						fmt.Sprintf("ความหมายคลุมเครือ (Ambiguous 52%% < 60%%): คอลัมน์ '%s' เป็นคำกว้างทั่วไป ไม่ได้ระบุว่าเป็นวันที่ประเภทใด ต้องได้รับการตรวจสอบจากผู้ใช้", sfClean),
 					}
 				}
 			case "SETTLEMENT_DATE":
@@ -93,10 +111,11 @@ func (m *MockAIProvider) MatchFields(ctx context.Context, processID string, sour
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.94
+					confidence = 0.900
 					reasons = []string{
-						fmt.Sprintf("คอลัมน์วันชำระราคา '%s' ตรงกับ '%s'", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูล: '%s'", sf.SampleVal),
+						fmt.Sprintf("วิเคราะห์บริบทการเงิน (Semantic Match 95%%): วันที่เงินเข้าชำระราคา '%s' (Value Date) ตรงกับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 30%%) | รูปแบบข้อมูล (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 95% × 0.6) + (Pattern 100% × 0.3) + (Text 30% × 0.1) = 90.0%",
 					}
 				}
 			case "CURRENCY":
@@ -104,10 +123,11 @@ func (m *MockAIProvider) MatchFields(ctx context.Context, processID string, sour
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.99
+					confidence = 0.934
 					reasons = []string{
-						fmt.Sprintf("คอลัมน์สกุลเงิน '%s' ตรงกับ '%s' (ISO 4217)", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูล: '%s'", sf.SampleVal),
+						fmt.Sprintf("วิเคราะห์บริบทการเงิน (Semantic Match 99%%): ตัวย่ออักขระสากล '%s' (ISO 4217) เทียบเท่ากับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 40%%) | รูปแบบข้อมูล (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 99% × 0.6) + (Pattern 100% × 0.3) + (Text 40% × 0.1) = 93.4%",
 					}
 				}
 			case "UNIT_PRICE":
@@ -115,10 +135,11 @@ func (m *MockAIProvider) MatchFields(ctx context.Context, processID string, sour
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.88
+					confidence = 0.903
 					reasons = []string{
-						fmt.Sprintf("ราคาต่อหน่วย/NAV '%s' ตรงกับ '%s'", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูล: '%s'", sf.SampleVal),
+						fmt.Sprintf("วิเคราะห์บริบทการเงินสากล (Semantic Match 98%%): คำว่า '%s' (Net Asset Value) แม้ตัวอักษรต่างกันแต่มีความหมายคือราคาต่อหน่วย ตรงกับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 15%%) | รูปแบบตัวเลข (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 98% × 0.6) + (Pattern 100% × 0.3) + (Text 15% × 0.1) = 90.3%",
 					}
 				}
 			case "QUANTITY":
@@ -126,10 +147,11 @@ func (m *MockAIProvider) MatchFields(ctx context.Context, processID string, sour
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.95
+					confidence = 0.911
 					reasons = []string{
-						fmt.Sprintf("จำนวนหน่วย '%s' ตรงกับ '%s'", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูล: '%s'", sf.SampleVal),
+						fmt.Sprintf("วิเคราะห์บริบทการเงิน (Semantic Match 96%%): ตัวย่อจำนวนหน่วย '%s' (Qty/Units) สอดคล้องกับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 35%%) | รูปแบบข้อมูล (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 96% × 0.6) + (Pattern 100% × 0.3) + (Text 35% × 0.1) = 91.1%",
 					}
 				}
 			case "AMOUNT":
@@ -137,10 +159,11 @@ func (m *MockAIProvider) MatchFields(ctx context.Context, processID string, sour
 					bestMatchSource = sfClean
 					bestSample = sf.SampleVal
 					bestDataType = sf.DataType
-					confidence = 0.94
+					confidence = 0.911
 					reasons = []string{
-						fmt.Sprintf("มูลค่าการซื้อขาย '%s' ตรงกับ '%s'", sfClean, tf.Name),
-						fmt.Sprintf("ตัวอย่างข้อมูล: '%s'", sf.SampleVal),
+						fmt.Sprintf("วิเคราะห์บริบทการเงิน (Semantic Match 96%%): มูลค่ารวมธุรกรรม '%s' สอดคล้องกับ '%s'", sfClean, tf.Name),
+						fmt.Sprintf("ความเหมือนชื่อตัวอักษร (Text Similarity 35%%) | รูปแบบข้อมูล (Pattern Match 100%%: %s)", sf.SampleVal),
+						"สูตรคำนวณ: (Semantic 96% × 0.6) + (Pattern 100% × 0.3) + (Text 35% × 0.1) = 91.1%",
 					}
 				}
 			}
@@ -163,7 +186,23 @@ func (m *MockAIProvider) MatchFields(ctx context.Context, processID string, sour
 				"โปรดเลือกคอลัมน์จากไฟล์อัปโหลดเพื่อจับคู่กับฟิลด์นี้",
 			}
 		} else {
-			if confidence >= 0.85 {
+			// Strict Data Type Match Check
+			isTypeMismatch := false
+			if tf.DataType == "Date" && bestDataType != "Date" && !isDateLike(bestSample) && !strings.Contains(strings.ToLower(bestMatchSource), "date") && !strings.Contains(bestMatchSource, "วันที่") {
+				isTypeMismatch = true
+			}
+			if (tf.DataType == "Decimal" || tf.DataType == "Number") && !isNumericLike(bestSample) {
+				isTypeMismatch = true
+			}
+
+			if isTypeMismatch {
+				confidence = 0.12
+				confLevel = "Low"
+				status = "SUGGESTED"
+				reasons = []string{
+					fmt.Sprintf("ไทป์ข้อมูลไม่ตรงกันอย่างยิ่ง (Type Mismatch 12%%): ฟิลด์มาตรฐาน '%s' ต้องการไทป์ '%s' แต่คอลัมน์ '%s' มีค่าตัวอย่างเป็นข้อความ ('%s') จึงปรับลดความเชื่อมั่นเหลือต่ำมาก", tf.Name, tf.DataType, bestMatchSource, bestSample),
+				}
+			} else if confidence >= 0.85 {
 				confLevel = "High"
 				status = "APPROVED"
 			} else {
@@ -210,3 +249,41 @@ func (m *MockAIProvider) ExplainMapping(ctx context.Context, sourceField, target
 	}
 	return reasons, 0.95, "High", nil
 }
+
+func isDateLike(val string) bool {
+	clean := strings.TrimSpace(val)
+	if clean == "" || clean == "-" {
+		return true
+	}
+	for _, sep := range []string{"/", "-", "."} {
+		if strings.Count(clean, sep) == 2 {
+			return true
+		}
+	}
+	return false
+}
+
+func isNumericLike(val string) bool {
+	clean := strings.TrimSpace(val)
+	if clean == "" || clean == "-" {
+		return true
+	}
+	clean = strings.ReplaceAll(clean, ",", "")
+	clean = strings.ReplaceAll(clean, "%", "")
+	clean = strings.ReplaceAll(clean, "บาท", "")
+	clean = strings.ReplaceAll(clean, "หน่วย", "")
+	clean = strings.ReplaceAll(clean, "THB", "")
+	clean = strings.ReplaceAll(clean, "USD", "")
+	clean = strings.TrimSpace(clean)
+
+	hasDigit := false
+	for _, r := range clean {
+		if r >= '0' && r <= '9' {
+			hasDigit = true
+		} else if r != '.' && r != '-' && r != '+' {
+			return false
+		}
+	}
+	return hasDigit
+}
+

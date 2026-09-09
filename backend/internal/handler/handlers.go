@@ -26,6 +26,7 @@ func (h *Handler) RegisterRoutes(app *fiber.App) {
 	api.Put("/templates/:id", h.UpdateTemplate)
 	api.Delete("/templates/:id", h.DeleteTemplate)
 	api.Get("/audit-logs", h.GetAuditLogs)
+	api.Get("/settings/ai", h.GetAISettings)
 	api.Post("/settings/ai", h.UpdateAISettings)
 
 	api.Get("/processes", h.GetProcesses)
@@ -85,6 +86,10 @@ func (h *Handler) DeleteTemplate(c *fiber.Ctx) error {
 
 func (h *Handler) GetAuditLogs(c *fiber.Ctx) error {
 	return c.JSON(h.svc.GetAuditLogs())
+}
+
+func (h *Handler) GetAISettings(c *fiber.Ctx) error {
+	return c.JSON(h.svc.GetAIConfig())
 }
 
 func (h *Handler) UpdateAISettings(c *fiber.Ctx) error {

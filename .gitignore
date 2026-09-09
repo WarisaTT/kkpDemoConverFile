@@ -1,0 +1,22 @@
+# Environment variables (Do not commit secrets!)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+
+# Logs and PIDs
+logs/
+*.log
+*.pid
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies and build outputs
+node_modules/
+backend/server
+dist/
+build/
+.next/

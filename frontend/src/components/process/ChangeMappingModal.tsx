@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Search, Check, Save, AlertCircle, Sparkles, Ban } from 'lucide-react';
-import { useProcessStore } from '@/store/useProcessStore';
+import { useProcessStore, calculateFieldMappingConfidence } from '@/store/useProcessStore';
 import { sheetMappingMap, getSourceFieldSample } from './MappingTableSection';
 
 const availableSourceFieldsMap: Record<string, { name: string; sample: string }[]> = {
@@ -109,21 +109,49 @@ export const ChangeMappingModal: React.FC = () => {
     const cols: { name: string; sample: string }[] = [];
     const added = new Set<string>();
 
-    // 1. Columns from current mappings
+    // 1. If original sheet headers exist directly from Excel extraction, use them!
+    const sheetHeaders = process?.sheetDataMap?.[currentSheetKey]?.headers;
+    if (sheetHeaders && sheetHeaders.length > 0) {
+      sheetHeaders.forEach((h) => {
+        if (h && !added.has(h)) {
+          added.add(h);
+          const sample = getSourceFieldSample(h, process, currentSheetKey) || '-';
+          cols.push({ name: h, sample });
+        }
+      });
+      return cols;
+    }
+
+    const targetNames = new Set(availableTargetFields.map((tf) => tf.toUpperCase()));
+
+    // 2. Columns from current mappings (excluding target fields)
     const currentMappings = process?.sheetDataMap?.[currentSheetKey]?.mappings || process?.mappings || [];
     currentMappings.forEach((m) => {
-      if (m.source_field && m.source_field !== 'UNMATCHED' && !m.source_field.includes('ไม่พบข้อมูล') && !added.has(m.source_field)) {
+      if (
+        m.source_field &&
+        m.source_field !== 'UNMATCHED' &&
+        !m.source_field.includes('ไม่พบข้อมูล') &&
+        !targetNames.has(m.source_field.toUpperCase()) &&
+        !added.has(m.source_field)
+      ) {
         added.add(m.source_field);
         const sample = getSourceFieldSample(m.source_field, process, currentSheetKey) || m.source_sample || '-';
         cols.push({ name: m.source_field, sample });
       }
     });
 
-    // 2. Columns from sheet rows or extracted records
+    // 3. Columns from sheet rows (excluding target fields)
     const rows = process?.sheetDataMap?.[currentSheetKey]?.rows || process?.extractedRecords;
     if (rows && rows.length > 0) {
       Object.keys(rows[0] || {}).forEach((k) => {
-        if (k && k !== 'id' && k !== 'sheetName' && k !== 'isEdited' && !added.has(k)) {
+        if (
+          k &&
+          k !== 'id' &&
+          k !== 'sheetName' &&
+          k !== 'isEdited' &&
+          !targetNames.has(k.toUpperCase()) &&
+          !added.has(k)
+        ) {
           added.add(k);
           const sample = getSourceFieldSample(k, process, currentSheetKey) || '-';
           cols.push({ name: k, sample });
@@ -131,7 +159,7 @@ export const ChangeMappingModal: React.FC = () => {
       });
     }
 
-    // 3. Fallback map if empty
+    // 4. Fallback map if empty
     if (cols.length === 0) {
       const fallback = availableSourceFieldsMap[currentSheetKey] || availableSourceFieldsMap.Custodian_A;
       fallback.forEach((f) => {
@@ -165,15 +193,26 @@ export const ChangeMappingModal: React.FC = () => {
       if (sheetMappings) {
         const itemIdx = sheetMappings.findIndex((m) => m.id === selectedMapping.id || m.target_field === targetField);
         if (itemIdx !== -1) {
+          const sample = customValue.trim() ? `ค่ากำหนดคงที่: ${customValue.trim()}` : (availableSourceCols.find(s => s.name === sourceToMap)?.sample || '-');
+          const scoring = calculateFieldMappingConfidence(sourceToMap, targetField, sample, selectedMapping.target_data_type);
+          const isMismatch = !!scoring.isTypeMismatch;
+          const conf = isMismatch ? scoring.confidence : 1.0;
+          const confLevel = isMismatch ? 'Low' : 'High';
+          const reasonStr = isMismatch
+            ? scoring.reason
+            : (customValue.trim()
+                ? `ผู้ใช้ระบุค่าคงที่ "${customValue.trim()}" สำหรับฟิลด์ ${targetField}`
+                : `ผู้ใช้เลือกแมชคอลัมน์ต้นทาง "${sourceToMap}" เข้าสู่ฟิลด์เป้าหมาย ${targetField} ด้วยตนเอง (Manual Match 100%)`);
+
           sheetMappings[itemIdx] = {
             ...sheetMappings[itemIdx],
             source_field: sourceToMap,
-            source_sample: customValue.trim() ? `ค่ากำหนดคงที่: ${customValue.trim()}` : (availableSourceCols.find(s => s.name === sourceToMap)?.sample || '-'),
-            source_data_type: customValue.trim() ? 'Static Default' : 'ข้อความ (Text)',
-            confidence: 1.0,
-            confidence_level: 'High',
-            status: 'ACCEPTED',
-            reasons: [`ผู้ใช้เลือกแมชคอลัมน์ต้นทาง "${sourceToMap}" เข้าสู่ฟิลด์เป้าหมาย ${targetField} ด้วยตนเอง (Manual Match 100%)`],
+            source_sample: sample,
+            source_data_type: customValue.trim() ? 'Static Default' : (isMismatch ? `Text (ไม่ตรงกับ ${selectedMapping.target_data_type})` : 'ข้อความ (Text)'),
+            confidence: conf,
+            confidence_level: confLevel,
+            status: isMismatch ? 'SUGGESTED' : 'ACCEPTED',
+            reasons: [reasonStr],
           };
         }
       }
@@ -215,15 +254,22 @@ export const ChangeMappingModal: React.FC = () => {
         );
         if (itemIdx !== -1) {
           const isUnmatched = targetToSave === 'UNMATCHED';
+          const sample = selectedMapping.source_sample;
+          const scoring = calculateFieldMappingConfidence(selectedMapping.source_field, targetToSave, sample);
+          const isMismatch = !!scoring.isTypeMismatch;
+          const conf = isUnmatched ? 0 : (isMismatch ? scoring.confidence : 0.95);
+          const confLevel = isUnmatched ? 'Low' : (isMismatch ? 'Low' : 'High');
+          const reasonStr = isUnmatched
+            ? [`ผู้ใช้เลือกกำหนดให้คอลัมน์ "${selectedMapping.source_field}" ไม่เข้ากับฟิลด์เป้าหมายใดในเทมเพลต (UNMATCHED)`]
+            : (isMismatch ? [scoring.reason] : [`ผู้ใช้ทำการปรับเปลี่ยนการจับคู่เป็น ${targetToSave} ด้วยตนเอง (Manual Override)`]);
+
           sheetMappings[itemIdx] = {
             ...sheetMappings[itemIdx],
             target_field: targetToSave,
-            status: isUnmatched ? 'UNMATCHED' : 'MODIFIED',
-            confidence: isUnmatched ? 0 : 0.95,
-            confidence_level: isUnmatched ? 'Low' : 'High',
-            reasons: isUnmatched
-              ? [`ผู้ใช้เลือกกำหนดให้คอลัมน์ "${selectedMapping.source_field}" ไม่เข้ากับฟิลด์เป้าหมายใดในเทมเพลต (UNMATCHED)`]
-              : [`ผู้ใช้ทำการปรับเปลี่ยนการจับคู่เป็น ${targetToSave} ด้วยตนเอง (Manual Override)`],
+            status: isUnmatched ? 'UNMATCHED' : (isMismatch ? 'SUGGESTED' : 'MODIFIED'),
+            confidence: conf,
+            confidence_level: confLevel,
+            reasons: reasonStr,
           };
         }
       }

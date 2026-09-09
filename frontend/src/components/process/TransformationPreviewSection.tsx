@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FileSpreadsheet,
   Code,
@@ -14,8 +14,10 @@ import {
   CheckCircle2,
   Search,
   RotateCcw,
+  RefreshCw,
   ShieldCheck,
   Lock,
+  History,
 } from 'lucide-react';
 import { useProcessStore } from '@/store/useProcessStore';
 import { isFootnoteOrNonDataRow, formatTargetValue } from '@/utils/formatUtils';
@@ -25,7 +27,7 @@ export function formatValueByTargetTemplate(field: string, rawVal: any): { forma
   return formatTargetValue(field, rawVal);
 }
 
-// Exactly the 8 KKP Standard Target Fields
+// Exactly the 8 KKP Standard Target Fields plus dynamic merged columns
 export interface RecordItem {
   id: number;
   sheetName: string;
@@ -37,6 +39,7 @@ export interface RecordItem {
   UNIT_PRICE: number | string;
   QUANTITY: number | string;
   AMOUNT: number | string;
+  [key: string]: any;
 }
 
 // Generate real rows strictly for the 8 target fields
@@ -178,54 +181,151 @@ const generateInitial102Rows = (): RecordItem[] => {
 };
 
 export const TransformationPreviewSection: React.FC = () => {
-  const { process, exportExcel } = useProcessStore();
-  const [editableRecords, setEditableRecords] = useState<RecordItem[]>(generateInitial102Rows);
+  const {
+    process,
+    templates,
+    exportExcel,
+    setActiveTab: setStoreActiveTab,
+    updateProcessStep,
+    uploadFile,
+    startNewProcess,
+    downloadSourceFile,
+    updateProcessTitle,
+  } = useProcessStore();
+  const step4FileInputRef = useRef<HTMLInputElement>(null);
+
+  // Local state for editing file name / history title
+  const [historyTitle, setHistoryTitle] = useState<string>(
+    process?.history_title || process?.file_name || 'KKP_Standard_Report.xlsx'
+  );
+  const [isTitleSaved, setIsTitleSaved] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (process) {
+      setHistoryTitle(process.history_title || process.file_name || 'KKP_Standard_Report.xlsx');
+    }
+  }, [process?.id, process?.history_title, process?.file_name]);
+
+  const handleSaveTitle = () => {
+    if (process && historyTitle.trim()) {
+      updateProcessTitle(process.id, historyTitle.trim());
+      setIsTitleSaved(true);
+      setTimeout(() => setIsTitleSaved(false), 2500);
+    }
+  };
+
+  const activeTemplate = useMemo(() => {
+    return (
+      templates.find(
+        (t) => t.id === process?.target_template_id || t.name === process?.target_template
+      ) || templates[0]
+    );
+  }, [templates, process?.target_template_id, process?.target_template]);
+
+  const activeTemplateFields = useMemo(() => {
+    if (activeTemplate?.fields && activeTemplate.fields.length > 0) {
+      return activeTemplate.fields;
+    }
+    return [];
+  }, [activeTemplate]);
+
+  const templateFieldNames = useMemo(() => {
+    if (activeTemplateFields.length > 0) {
+      return activeTemplateFields.map((f: any) => f.name);
+    }
+    if (process?.mappings && process.mappings.length > 0) {
+      return Array.from(
+        new Set(
+          process.mappings
+            .map((m: any) => m.target_field)
+            .filter((t: string) => t && t !== 'UNMATCHED')
+        )
+      );
+    }
+    return ['FUND_NAME', 'FUND_CODE', 'TRADE_DATE', 'SETTLEMENT_DATE', 'CURRENCY', 'UNIT_PRICE', 'QUANTITY', 'AMOUNT'];
+  }, [activeTemplateFields, process?.mappings]);
+
+  // Dynamic Column List strictly matching the active template
+  const displayColumns = useMemo(() => {
+    const base = templateFieldNames;
+    if (process?.confirmedHeaders && process.confirmedHeaders.length > 0) {
+      const extra = process.confirmedHeaders.filter(
+        (h) => !base.includes(h) && h !== 'id' && h !== 'sheetName' && h !== '_id' && h !== 'rowNum' && h !== 'UNMATCHED'
+      );
+      return [...base, ...extra];
+    }
+    return base;
+  }, [templateFieldNames, process?.confirmedHeaders]);
+
+  const [editableRecords, setEditableRecords] = useState<RecordItem[]>([]);
 
   useEffect(() => {
     if (!process) return;
+
+    // Immediately ensure process status is marked as Completed Step 4 in store & history list
+    if (process.current_step !== 4 || process.status !== 'Completed') {
+      updateProcessStep(4, 'Completed');
+    }
 
     if (process.sheetDataMap && Object.keys(process.sheetDataMap).length > 0) {
       const dynamicRows: RecordItem[] = [];
       let rowId = 1;
 
       for (const [sname, sdata] of Object.entries(process.sheetDataMap)) {
-        const mappings = sdata.mappings || process.mappings || [];
+        const validRows = (sdata.rows || []).filter((r: any) => !isFootnoteOrNonDataRow(r, (sdata.headers || []).length || 8));
+
+        // Mapping lookup for this sheet
         const targetToSource: Record<string, string> = {};
-        mappings.forEach((m) => {
+        const sheetMappings = sdata.mappings || process.mappings || [];
+        sheetMappings.forEach((m: any) => {
           if (m.target_field && m.source_field && m.source_field !== 'UNMATCHED') {
             targetToSource[m.target_field] = m.source_field;
           }
         });
 
-        const validRows = (sdata.rows || []).filter((r: any) => !isFootnoteOrNonDataRow(r, (sdata.headers || []).length || 8));
-
         validRows.forEach((rawRow: any) => {
-          const getVal = (tf: string) => {
-            const sc = targetToSource[tf];
-            return sc && rawRow[sc] !== undefined ? rawRow[sc] : '-';
-          };
-
-          const rawFundName = getVal('FUND_NAME');
-          const rawFundCode = getVal('FUND_CODE') !== '-' ? getVal('FUND_CODE') : `F${1000 + rowId}`;
-          const rawTradeDate = getVal('TRADE_DATE');
-          const rawSettleDate = getVal('SETTLEMENT_DATE');
-          const rawCcy = getVal('CURRENCY') !== '-' ? getVal('CURRENCY') : 'THB';
-          const rawPrice = getVal('UNIT_PRICE');
-          const rawQty = getVal('QUANTITY');
-          const rawAmt = getVal('AMOUNT');
-
-          dynamicRows.push({
+          const rowObj: any = {
             id: rowId++,
             sheetName: sname,
-            FUND_NAME: String(rawFundName),
-            FUND_CODE: String(rawFundCode),
-            TRADE_DATE: formatValueByTargetTemplate('TRADE_DATE', rawTradeDate).formattedVal,
-            SETTLEMENT_DATE: formatValueByTargetTemplate('SETTLEMENT_DATE', rawSettleDate).formattedVal,
-            CURRENCY: formatValueByTargetTemplate('CURRENCY', rawCcy).formattedVal,
-            UNIT_PRICE: formatValueByTargetTemplate('UNIT_PRICE', rawPrice).formattedVal,
-            QUANTITY: formatValueByTargetTemplate('QUANTITY', rawQty).formattedVal,
-            AMOUNT: formatValueByTargetTemplate('AMOUNT', rawAmt).formattedVal,
+          };
+
+          const getVal = (targetName: string) => {
+            // 1. Direct standard key (e.g. from Step 3 confirmed records)
+            if (rawRow[targetName] !== undefined && rawRow[targetName] !== null && String(rawRow[targetName]).trim() !== '') {
+              const val = typeof rawRow[targetName] === 'object' && 'formattedVal' in rawRow[targetName] ? rawRow[targetName].formattedVal : rawRow[targetName];
+              return String(val).trim();
+            }
+            // 2. Lookup via source column mapping
+            const srcCol = targetToSource[targetName];
+            if (srcCol && rawRow[srcCol] !== undefined && rawRow[srcCol] !== null && String(rawRow[srcCol]).trim() !== '') {
+              const val = typeof rawRow[srcCol] === 'object' && 'formattedVal' in rawRow[srcCol] ? rawRow[srcCol].formattedVal : rawRow[srcCol];
+              return String(val).trim();
+            }
+            return '-';
+          };
+
+          displayColumns.forEach((col: string) => {
+            const raw = getVal(col);
+            rowObj[col] = formatTargetValue(col, raw).formattedVal;
           });
+
+          // Check if primary transaction identifier (FUND_NAME) is present
+          const fundVal = rowObj['FUND_NAME'] ?? getVal('FUND_NAME');
+          const strFund = String(fundVal || '').trim();
+          if (!strFund || strFund === '-' || strFund === 'null' || strFund === 'undefined') {
+            return; // Skip invalid row without Fund Name
+          }
+
+          // Preserve any extra custom merged columns
+          Object.keys(rawRow).forEach((k) => {
+            if (!rowObj.hasOwnProperty(k) && k !== 'sheetName' && k !== 'id' && k !== '_id' && k !== 'rowNum' && k !== 'UNMATCHED') {
+              const v = rawRow[k];
+              const val = typeof v === 'object' && v !== null && 'formattedVal' in v ? v.formattedVal : v;
+              rowObj[k] = val !== undefined && val !== null && String(val).trim() !== '' ? String(val).trim() : '-';
+            }
+          });
+
+          dynamicRows.push(rowObj);
         });
       }
 
@@ -233,22 +333,63 @@ export const TransformationPreviewSection: React.FC = () => {
         setEditableRecords(dynamicRows);
       }
     } else if (process.extractedRecords && process.extractedRecords.length > 0) {
+      const targetToSource: Record<string, string> = {};
+      (process.mappings || []).forEach((m: any) => {
+        if (m.target_field && m.source_field && m.source_field !== 'UNMATCHED') {
+          targetToSource[m.target_field] = m.source_field;
+        }
+      });
+
       const validExtracted = (process.extractedRecords || []).filter((r: any) => !isFootnoteOrNonDataRow(r, 8));
-      const dynamicRows: RecordItem[] = validExtracted.map((r: any, idx: number) => ({
-        id: idx + 1,
-        sheetName: r.sheetName || 'Sheet1',
-        FUND_NAME: String(r.FUND_NAME || '-'),
-        FUND_CODE: String(r.FUND_CODE || `F${1000 + idx + 1}`),
-        TRADE_DATE: formatValueByTargetTemplate('TRADE_DATE', r.TRADE_DATE).formattedVal,
-        SETTLEMENT_DATE: formatValueByTargetTemplate('SETTLEMENT_DATE', r.SETTLEMENT_DATE).formattedVal,
-        CURRENCY: formatValueByTargetTemplate('CURRENCY', r.CURRENCY || 'THB').formattedVal,
-        UNIT_PRICE: formatValueByTargetTemplate('UNIT_PRICE', r.UNIT_PRICE).formattedVal,
-        QUANTITY: formatValueByTargetTemplate('QUANTITY', r.QUANTITY).formattedVal,
-        AMOUNT: formatValueByTargetTemplate('AMOUNT', r.AMOUNT).formattedVal,
-      }));
+      const dynamicRows: RecordItem[] = [];
+      let rowIdx = 1;
+      validExtracted.forEach((r: any) => {
+        const rowObj: any = {
+          id: rowIdx++,
+          sheetName: r.sheetName || 'Sheet1',
+        };
+
+        const getVal = (targetName: string) => {
+          if (r[targetName] !== undefined && r[targetName] !== null && String(r[targetName]).trim() !== '') {
+            const val = typeof r[targetName] === 'object' && 'formattedVal' in r[targetName] ? r[targetName].formattedVal : r[targetName];
+            return String(val).trim();
+          }
+          const srcCol = targetToSource[targetName];
+          if (srcCol && r[srcCol] !== undefined && r[srcCol] !== null && String(r[srcCol]).trim() !== '') {
+            const val = typeof r[srcCol] === 'object' && 'formattedVal' in r[srcCol] ? r[srcCol].formattedVal : r[srcCol];
+            return String(val).trim();
+          }
+          return '-';
+        };
+
+        displayColumns.forEach((col: string) => {
+          const raw = getVal(col);
+          rowObj[col] = formatTargetValue(col, raw).formattedVal;
+        });
+
+        // Check if primary transaction identifier (FUND_NAME) is present
+        const fundVal = rowObj['FUND_NAME'] ?? getVal('FUND_NAME');
+        const strFund = String(fundVal || '').trim();
+        if (!strFund || strFund === '-' || strFund === 'null' || strFund === 'undefined') {
+          return; // Skip invalid row without Fund Name
+        }
+
+        Object.keys(r).forEach((k) => {
+          if (!rowObj.hasOwnProperty(k) && k !== 'sheetName' && k !== 'id' && k !== '_id' && k !== 'rowNum' && k !== 'UNMATCHED') {
+            const v = r[k];
+            const val = typeof v === 'object' && v !== null && 'formattedVal' in v ? v.formattedVal : v;
+            rowObj[k] = val !== undefined && val !== null && String(val).trim() !== '' ? String(val).trim() : '-';
+          }
+        });
+
+        dynamicRows.push(rowObj);
+      });
       setEditableRecords(dynamicRows);
+    } else {
+      // If no data exists, fall back to initial mock rows mapped to active template fields
+      setEditableRecords(generateInitial102Rows());
     }
-  }, [process]);
+  }, [process, displayColumns]);
 
   const [copied, setCopied] = useState<boolean>(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState<boolean>(false);
@@ -260,8 +401,26 @@ export const TransformationPreviewSection: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(15);
 
-  // Generate cleaned JSON without metadata fields (strictly the 8 KKP standard fields)
-  const cleanJsonRecords = editableRecords.map(({ id, sheetName, ...rest }) => rest);
+  // Generate cleaned JSON matching Preview columns & values 100%
+  const cleanJsonRecords = useMemo(() => {
+    return editableRecords
+      .filter((r: any) => {
+        const fn = r['FUND_NAME'] ?? r['Fund Name'] ?? r['fund_name'];
+        const strFn = typeof fn === 'object' && fn !== null && 'formattedVal' in fn ? fn.formattedVal : fn;
+        const s = String(strFn ?? '').trim();
+        return s !== '' && s !== '-' && s !== 'null' && s !== 'undefined';
+      })
+      .map(({ id, sheetName, ...rest }) => {
+        const restRecord = rest as Record<string, any>;
+        const cleanObj: Record<string, any> = {};
+        displayColumns.forEach((col: string) => {
+          const rawV = restRecord[col];
+          cleanObj[col] = (typeof rawV === 'object' && rawV !== null && 'formattedVal' in rawV ? rawV.formattedVal : rawV) ?? '-';
+        });
+        return cleanObj;
+      });
+  }, [editableRecords, displayColumns]);
+
   const fullJsonArrayString = JSON.stringify(cleanJsonRecords, null, 2);
 
   const handleCopyJson = () => {
@@ -303,32 +462,42 @@ export const TransformationPreviewSection: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="bg-emerald-400 text-emerald-950 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-950 stroke-[2.5]" />
-                สถานะ: เสร็จสมบูรณ์ (Completed & Audit-Locked)
+                สถานะ: COMPLETED & AUDIT-LOCKED
               </span>
               <span className="bg-white/15 text-emerald-200 text-xs font-bold px-2.5 py-0.5 rounded-full border border-white/20">
                 100% SUCCESS
               </span>
             </div>
             <h2 className="text-xl font-black tracking-tight text-white">
-              แปลงข้อมูลเสร็จสมบูรณ์ — ข้อมูล 8 ฟิลด์มาตรฐาน KKP
+              แปลงข้อมูลเสร็จสมบูรณ์ — ข้อมูล {displayColumns.length} ฟิลด์มาตรฐาน KKP
             </h2>
             <p className="text-xs text-emerald-100 font-medium leading-relaxed">
-              ข้อมูลทั้งหมดผ่านการจัดรูปแบบตามมาตรฐาน <strong>KKP_CUSTODIAN_TRADE_V2 (8 ฟิลด์)</strong> เรียบร้อยแล้ว ระบบได้ล็อคข้อมูลเป็น Read-Only เพื่อความถูกต้องตามเกณฑ์ ท่านสามารถดาวน์โหลดไฟล์ Excel หรือ JSON ซ้ำได้ตลอดเวลา
+              ข้อมูลทั้งหมดผ่านการจัดรูปแบบตามมาตรฐาน <strong>{activeTemplate?.name || process?.target_template || 'KKP Standard'} ({displayColumns.length} ฟิลด์)</strong> เรียบร้อยแล้ว ระบบได้ล็อคข้อมูลเป็น Read-Only เพื่อความถูกต้องตามเกณฑ์ ท่านสามารถดาวน์โหลดไฟล์ Excel หรือ JSON ซ้ำได้ตลอดเวลา
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
             {/* 1. Copy JSON */}
-            <button
+            {/* <button
               onClick={handleCopyJson}
               className="px-4 py-2.5 text-xs font-extrabold text-white bg-white/10 hover:bg-white/20 border border-white/30 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-sm"
               title="คัดลอกชุดข้อมูล JSON ทั้งหมดลงคลิปบอร์ด"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-400 stroke-[2.5]" /> : <Copy className="w-4 h-4 text-emerald-200" />}
               <span>{copied ? 'คัดลอก JSON แล้ว' : 'คัดลอก JSON'}</span>
+            </button> */}
+
+            {/* 0. Download Original Source File */}
+            <button
+              onClick={() => downloadSourceFile(process)}
+              className="px-4 py-2.5 text-xs font-extrabold text-emerald-100 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 rounded-xl flex items-center gap-2 transition shadow-sm cursor-pointer"
+              title="ดาวน์โหลดไฟล์ต้นฉบับดั้งเดิมที่อัปโหลด"
+            >
+              <Download className="w-4 h-4 text-emerald-300 stroke-[2.5]" />
+              <span>ดาวน์โหลดไฟล์ต้นทาง</span>
             </button>
 
-            {/* 2. Download JSON */}
+            {/* 1. Download JSON */}
             <button
               onClick={handleDownloadJson}
               className="px-4 py-2.5 text-xs font-extrabold text-white bg-purple-900/90 hover:bg-purple-800 border border-purple-500 rounded-xl flex items-center gap-2 transition shadow-md cursor-pointer"
@@ -338,9 +507,9 @@ export const TransformationPreviewSection: React.FC = () => {
               <span>ดาวน์โหลด JSON (.json)</span>
             </button>
 
-            {/* 3. Download Excel (Re-downloadable anytime) */}
+            {/* 2. Download Excel (Re-downloadable anytime, matches preview 100%) */}
             <button
-              onClick={() => exportExcel()}
+              onClick={() => exportExcel(editableRecords)}
               className="px-5 py-2.5 text-xs font-black text-emerald-950 bg-emerald-400 hover:bg-emerald-300 border border-emerald-300 rounded-xl flex items-center gap-2 transition shadow-lg scale-[1.02] cursor-pointer"
               title="ดาวน์โหลดไฟล์มาตรฐาน Excel (.xlsx) สามารถดาวน์โหลดซ้ำได้ตลอดเวลา"
             >
@@ -348,19 +517,83 @@ export const TransformationPreviewSection: React.FC = () => {
               <span>ดาวน์โหลด Excel (.xlsx)</span>
             </button>
 
-            {/* 4. Start New Process */}
+            {/* 3. Go to History Page */}
             <button
-              onClick={() => {
-                window.location.reload();
-              }}
-              className="px-3.5 py-2.5 text-xs font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl transition flex items-center gap-1.5 cursor-pointer ml-1"
-              title="เริ่มต้นกระบวนการแปลงไฟล์ใหม่"
+              onClick={() => setStoreActiveTab('history')}
+              className="px-5 py-2.5 text-xs font-extrabold text-purple-950 bg-amber-400 hover:bg-amber-300 border border-amber-300 rounded-xl flex items-center gap-2 transition shadow-lg scale-[1.02] cursor-pointer"
+              title="ดูประวัติรายการประมวลผลทั้งหมดในหน้า History"
             >
-              <RotateCcw className="w-4 h-4 text-slate-300" />
+              <History className="w-4 h-4 text-purple-950 stroke-[2.5]" />
+              <span>ดูประวัติการทำรายการ (History) →</span>
+            </button>
+          </div>
+        </div>
+
+        {/* File Name & History Title Renaming Bar */}
+        <div className="mt-5 pt-4 border-t border-emerald-600/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-black/20 p-3.5 rounded-xl">
+          <div className="flex items-center gap-2 text-xs font-medium text-emerald-100 flex-1 min-w-0">
+            <span className="font-extrabold text-white flex-shrink-0">
+              บันทึกชื่อไฟล์ / ชื่อ History:
+            </span>
+            <input
+              type="text"
+              value={historyTitle}
+              onChange={(e) => setHistoryTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
+              placeholder="ระบุชื่อสำหรับบันทึกใน History..."
+              className="flex-1 min-w-[200px] px-3 py-1.5 bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-emerald-400/50 rounded-lg text-white placeholder-emerald-200/60 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400 text-xs transition"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSaveTitle}
+              className={`px-4 py-1.5 text-xs font-black rounded-lg transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer flex-shrink-0 ${
+                isTitleSaved
+                  ? 'bg-emerald-300 text-emerald-950'
+                  : 'bg-emerald-400 hover:bg-emerald-300 text-emerald-950 hover:shadow-lg'
+              }`}
+            >
+              {isTitleSaved ? (
+                <>
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>บันทึกชื่อเรียบร้อยแล้ว</span>
+                </>
+              ) : (
+                <span>บันทึกชื่อไฟล์</span>
+              )}
+            </button>
+
+            {/* 6. Start New Process */}
+            <button
+              type="button"
+              onClick={() => {
+                startNewProcess();
+              }}
+              className="px-3.5 py-1.5 text-xs font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+              title="เริ่มต้นกระบวนการแปลงไฟล์ใหม่ (กลับสู่หน้าอัปโหลดไฟล์)"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-300" />
               <span>เริ่มแปลงไฟล์ใหม่</span>
             </button>
           </div>
         </div>
+
+        {/* Hidden File Input for Step 4 */}
+        <input
+          type="file"
+          ref={step4FileInputRef}
+          onChange={(e) => {
+            if (e.target.files && e.target.files[0]) {
+              uploadFile(e.target.files[0]);
+            }
+          }}
+          onClick={(e) => {
+            (e.target as HTMLInputElement).value = '';
+          }}
+          accept=".xlsx,.xls,.csv,.pdf,.eml,.msg,.txt,.json"
+          className="hidden"
+        />
       </div>
 
       {/* Main Presentation View (Read-Only Table & JSON) */}
@@ -474,20 +707,28 @@ export const TransformationPreviewSection: React.FC = () => {
                   <tr className="bg-purple-950 text-amber-300 font-extrabold text-xs uppercase tracking-wider border-b border-purple-900">
                     <th className="py-3 px-3 text-center w-12 border-r border-purple-900">ลำดับ</th>
                     <th className="py-3 px-3 border-r border-purple-900 text-center text-purple-200">แผ่นงาน</th>
-                    <th className="py-3 px-4 border-r border-purple-900">FUND_NAME</th>
-                    <th className="py-3 px-4 border-r border-purple-900">FUND_CODE</th>
-                    <th className="py-3 px-4 border-r border-purple-900">TRADE_DATE</th>
-                    <th className="py-3 px-4 border-r border-purple-900">SETTLEMENT_DATE</th>
-                    <th className="py-3 px-4 border-r border-purple-900 text-center">CURRENCY</th>
-                    <th className="py-3 px-4 border-r border-purple-900 text-right">UNIT_PRICE</th>
-                    <th className="py-3 px-4 border-r border-purple-900 text-right">QUANTITY</th>
-                    <th className="py-3 px-4 text-right">AMOUNT</th>
+                    {displayColumns.map((col: string) => {
+                      const c = col.toUpperCase();
+                      const isRight = c.includes('PRICE') || c.includes('QUANTITY') || c.includes('AMOUNT') || c.includes('VALUE') || c.includes('UNITS') || c.includes('SIZE') || c.includes('TOTAL');
+                      const isCenter = c.includes('CURRENCY') || c.includes('DATE') || c.includes('STATUS') || c.includes('CODE') || c.includes('TYPE') || c.includes('ISIN') || c.includes('NO');
+                      return (
+                        <th
+                          key={col}
+                          className={`py-3 px-4 border-r border-purple-900 ${
+                            isRight ? 'text-right' : isCenter ? 'text-center' : 'text-left'
+                          }`}
+                        >
+                          {col}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-xs">
                   {paginatedRecords.length > 0 ? (
                     paginatedRecords.map((row, pIdx) => {
                       const actualIdx = (currentPage - 1) * pageSize + pIdx + 1;
+                      const rowRecord = row as Record<string, any>;
                       return (
                         <tr
                           key={row.id}
@@ -505,53 +746,45 @@ export const TransformationPreviewSection: React.FC = () => {
                             </span>
                           </td>
 
-                          {/* FUND_NAME */}
-                          <td className="py-2.5 px-4 border-r border-slate-200 font-semibold text-[#2e1d52]">
-                            {row.FUND_NAME}
-                          </td>
+                          {/* Dynamic Columns */}
+                          {displayColumns.map((col: string) => {
+                            const rawV = rowRecord[col];
+                            const val = typeof rawV === 'object' && rawV !== null && 'formattedVal' in rawV ? rawV.formattedVal : rawV;
+                            const strVal = val !== undefined && val !== null ? String(val) : '-';
+                            const c = col.toUpperCase();
+                            const isRight = c.includes('PRICE') || c.includes('QUANTITY') || c.includes('AMOUNT') || c.includes('VALUE') || c.includes('UNITS') || c.includes('SIZE') || c.includes('TOTAL');
+                            const isCenter = c.includes('CURRENCY') || c.includes('DATE') || c.includes('STATUS') || c.includes('CODE') || c.includes('TYPE') || c.includes('ISIN') || c.includes('NO');
+                            const isAmount = c.includes('AMOUNT') || c.includes('TOTAL_ISSUE');
 
-                          {/* FUND_CODE */}
-                          <td className="py-2.5 px-4 border-r border-slate-200 font-mono font-bold text-purple-900">
-                            {row.FUND_CODE}
-                          </td>
-
-                          {/* TRADE_DATE */}
-                          <td className="py-2.5 px-4 border-r border-slate-200 font-mono text-slate-800">
-                            {row.TRADE_DATE}
-                          </td>
-
-                          {/* SETTLEMENT_DATE */}
-                          <td className="py-2.5 px-4 border-r border-slate-200 font-mono text-slate-800">
-                            {row.SETTLEMENT_DATE}
-                          </td>
-
-                          {/* CURRENCY */}
-                          <td className="py-2.5 px-3 border-r border-slate-200 text-center font-bold">
-                            <span className="font-mono font-extrabold text-[11px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
-                              {row.CURRENCY}
-                            </span>
-                          </td>
-
-                          {/* UNIT_PRICE */}
-                          <td className="py-2.5 px-4 border-r border-slate-200 text-right font-mono font-semibold text-slate-900">
-                            {row.UNIT_PRICE}
-                          </td>
-
-                          {/* QUANTITY */}
-                          <td className="py-2.5 px-4 border-r border-slate-200 text-right font-mono font-semibold text-slate-900">
-                            {row.QUANTITY}
-                          </td>
-
-                          {/* AMOUNT */}
-                          <td className="py-2.5 px-4 text-right font-mono font-extrabold text-emerald-800 bg-emerald-50/40">
-                            {row.AMOUNT}
-                          </td>
+                            return (
+                              <td
+                                key={col}
+                                className={`py-2.5 px-4 border-r border-slate-200 font-mono ${
+                                  isAmount
+                                    ? 'font-extrabold text-emerald-800 bg-emerald-50/40 text-right'
+                                    : isRight
+                                    ? 'text-right font-semibold text-slate-900'
+                                    : isCenter
+                                    ? 'text-center font-bold'
+                                    : 'text-left font-semibold text-[#2e1d52]'
+                                }`}
+                              >
+                                {isCenter ? (
+                                  <span className="font-mono font-extrabold text-[11px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                                    {strVal}
+                                  </span>
+                                ) : (
+                                  strVal
+                                )}
+                              </td>
+                            );
+                          })}
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={10} className="py-8 text-center text-slate-500 font-bold">
+                      <td colSpan={displayColumns.length + 2} className="py-8 text-center text-slate-500 font-bold">
                         ไม่พบข้อมูลที่ตรงกับคำค้นหา
                       </td>
                     </tr>

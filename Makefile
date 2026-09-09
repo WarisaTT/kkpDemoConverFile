@@ -1,12 +1,13 @@
 ROOT_DIR := $(shell pwd)
 LOGS_DIR := $(ROOT_DIR)/logs
 
-.PHONY: all run stop status dev backend frontend docker-run docker-stop logs help
+.PHONY: all run stop status dev backend frontend docker-run docker-stop logs help share
 
 all: run
 
 help:
 	@echo "Available commands:"
+	@echo "  make share       - Start services and create public link via Cloudflare Tunnel"
 	@echo "  make run         - Run both Backend & Frontend in background"
 	@echo "  make stop        - Stop running Backend and Frontend"
 	@echo "  make status      - Check if services are running"
@@ -64,3 +65,12 @@ docker-run:
 
 docker-stop:
 	docker-compose down
+
+share:
+	@$(MAKE) run
+	@echo "======================================================="
+	@echo "Starting Cloudflare Tunnel for public access..."
+	@echo "Copy the https://xxxx.trycloudflare.com link below to share"
+	@echo "Press Ctrl+C when you want to stop sharing"
+	@echo "======================================================="
+	@cloudflared tunnel --http-host-header localhost:3000 --url http://localhost:3000

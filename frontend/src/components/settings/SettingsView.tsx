@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Cpu, ShieldCheck, CheckCircle2, Save, Key, Sparkles, AlertCircle } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 export const SettingsView: React.FC = () => {
   const [provider, setProvider] = useState<'mock' | 'llama'>('llama');
@@ -12,8 +12,9 @@ export const SettingsView: React.FC = () => {
   const [modelName, setModelName] = useState<string>('llama-3.3-70b-versatile');
   const [saved, setSaved] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [envKeyConfig, setEnvKeyConfig] = useState<{ hasKey: boolean; maskedKey: string } | null>(null);
 
-  // Load saved settings from localStorage on mount
+  // Load saved settings from localStorage on mount & sync with server .env
   useEffect(() => {
     const savedKey = localStorage.getItem('kkp_ai_key') || '';
     const savedUrl = localStorage.getItem('kkp_ai_url') || 'https://api.groq.com/openai/v1';
@@ -24,6 +25,21 @@ export const SettingsView: React.FC = () => {
     setBaseUrl(savedUrl);
     setModelName(savedModel);
     setProvider(savedProv);
+
+    // Fetch server AI config from .env
+    fetch(`${API_BASE}/settings/ai`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.has_api_key) {
+          setEnvKeyConfig({ hasKey: true, maskedKey: data.masked_key });
+          if (!savedKey) {
+            setProvider('llama');
+            if (data.base_url) setBaseUrl(data.base_url);
+            if (data.model) setModelName(data.model);
+          }
+        }
+      })
+      .catch(() => {});
 
     // Auto sync with backend if saved key exists
     if (savedKey) {
@@ -119,6 +135,15 @@ export const SettingsView: React.FC = () => {
                   <Key className="w-4 h-4 text-amber-400" />
                   Groq / Llama API Key *
                 </label>
+                {envKeyConfig?.hasKey && !apiKey && (
+                  <div className="mb-2 p-2.5 bg-emerald-950/80 border border-emerald-500/60 rounded-xl flex items-center justify-between text-xs text-emerald-300 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>กำลังใช้งาน API Key จากไฟล์ <strong>.env</strong> ({envKeyConfig.maskedKey})</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-emerald-700/60 text-emerald-200 px-2 py-0.5 rounded-full">Server Active</span>
+                  </div>
+                )}
                 <input
                   type="password"
                   value={apiKey}
@@ -126,7 +151,7 @@ export const SettingsView: React.FC = () => {
                     setApiKey(e.target.value);
                     if (e.target.value.trim() !== '') setProvider('llama');
                   }}
-                  placeholder="gsk_..."
+                  placeholder={envKeyConfig?.hasKey ? `ใช้ค่าเริ่มต้นจาก .env (${envKeyConfig.maskedKey})` : "gsk_..."}
                   className="w-full text-xs p-3 bg-[#140b2a] border border-purple-500/70 text-emerald-400 rounded-xl font-mono font-bold focus:outline-none focus:border-amber-400 placeholder-slate-500 shadow-inner"
                 />
               </div>

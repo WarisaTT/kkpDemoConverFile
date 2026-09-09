@@ -16,7 +16,7 @@ import { useProcessStore } from '@/store/useProcessStore';
 import { NavTab } from '@/types';
 
 export const Sidebar: React.FC = () => {
-  const { activeTab, setActiveTab } = useProcessStore();
+  const { activeTab, setActiveTab, startNewProcess } = useProcessStore();
 
   const menuItems: { id: NavTab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -53,7 +53,13 @@ export const Sidebar: React.FC = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  if (item.id === 'new-process') {
+                    startNewProcess();
+                  } else {
+                    setActiveTab(item.id);
+                  }
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 ${
                   isActive
                     ? 'bg-purple-600/50 text-white shadow-sm border border-purple-400/30 font-semibold'

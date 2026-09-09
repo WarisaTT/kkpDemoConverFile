@@ -33,7 +33,16 @@ export const TemplatesView: React.FC = () => {
           </p>
         </div>
 
-
+        <button
+          onClick={() => {
+            setEditingTmpl(null);
+            setIsCreateOpen(true);
+          }}
+          className="purple-gradient-btn px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4 text-amber-300" />
+          <span>เพิ่ม Template มาตรฐานใหม่</span>
+        </button>
       </div>
 
       {/* Sub-Tab Navigation Bar */}
@@ -91,6 +100,15 @@ export const TemplatesView: React.FC = () => {
                   <p className="text-xs text-slate-500 line-clamp-2">{tmpl.description}</p>
                 </div>
               </div>
+
+              {tmpl.ai_training_hints && (
+                <div className="bg-purple-50 border border-purple-200 text-purple-900 p-2 rounded-lg text-[10px] font-medium flex items-start gap-1.5 mb-2">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-700 flex-shrink-0 mt-0.5" />
+                  <span className="line-clamp-2">
+                    <strong className="font-bold text-purple-950">AI Hints:</strong> {tmpl.ai_training_hints}
+                  </span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs my-4">
                 <div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useProcessStore, matchTargetToSourceField, isFootnoteOrNonDataRow } from '@/store/useProcessStore';
+import { useProcessStore, matchTargetToSourceField, calculateFieldMappingConfidence, isFootnoteOrNonDataRow } from '@/store/useProcessStore';
 import {
   FileSpreadsheet,
   Search,
@@ -44,12 +44,12 @@ export const EXACT_EXCEL_SHEETS = {
     defaultMappings: [
       { target_field: 'FUND_NAME', source_field: 'Fund_Name', confidence: 0.98 },
       { target_field: 'FUND_CODE', source_field: 'Fund_Code', confidence: 0.97 },
-      { target_field: 'TRADE_DATE', source_field: 'Trade Date', confidence: 0.95 },
-      { target_field: 'SETTLEMENT_DATE', source_field: 'Settlement Date', confidence: 0.94 },
-      { target_field: 'CURRENCY', source_field: 'CCY', confidence: 0.99 },
-      { target_field: 'UNIT_PRICE', source_field: 'NAV', confidence: 0.96 },
-      { target_field: 'QUANTITY', source_field: 'Qty', confidence: 0.95 },
-      { target_field: 'AMOUNT', source_field: 'Amount', confidence: 0.94 },
+      { target_field: 'TRADE_DATE', source_field: 'Trade Date', confidence: 0.96 },
+      { target_field: 'SETTLEMENT_DATE', source_field: 'Settlement Date', confidence: 0.96 },
+      { target_field: 'CURRENCY', source_field: 'CCY', confidence: 0.96 },
+      { target_field: 'UNIT_PRICE', source_field: 'NAV', confidence: 0.78 },
+      { target_field: 'QUANTITY', source_field: 'Qty', confidence: 0.96 },
+      { target_field: 'AMOUNT', source_field: 'Amount', confidence: 0.97 },
     ],
     rows: [
       ["KKP Short Term Fixed Income Fund", "F1000", "15/07/2026", "17/07/2026", "THB", "14.1718", "2,500", "35,429.50", "BLS", "Fixed Income"],
@@ -71,7 +71,7 @@ export const EXACT_EXCEL_SHEETS = {
     rowCount: 42,
     colCount: 10,
     note: "",
-    mappingSummary: "10 ฟิลด์จับคู่สมบูรณ์ (94.2% Confidence)",
+    mappingSummary: "10 ฟิลด์จับคู่สมบูรณ์ (93.1% Confidence)",
     dupRows: [45, 46]
   },
   custodian_b: {
@@ -80,14 +80,14 @@ export const EXACT_EXCEL_SHEETS = {
     badge: "Source B",
     headers: ["Fund", "Fund Identifier", "Transaction_Date", "Settle_Date", "Currency", "Net Asset Value", "Quantity", "Trade Amount", "Exec Broker", "Portfolio_Type", "Security_Class"],
     defaultMappings: [
-      { target_field: 'FUND_NAME', source_field: 'Fund', confidence: 0.98 },
-      { target_field: 'FUND_CODE', source_field: 'Fund Identifier', confidence: 0.97 },
-      { target_field: 'TRADE_DATE', source_field: 'Transaction_Date', confidence: 0.96 },
-      { target_field: 'SETTLEMENT_DATE', source_field: 'Settle_Date', confidence: 0.95 },
-      { target_field: 'CURRENCY', source_field: 'Currency', confidence: 0.99 },
-      { target_field: 'UNIT_PRICE', source_field: 'Net Asset Value', confidence: 0.94 },
+      { target_field: 'FUND_NAME', source_field: 'Fund', confidence: 0.78 },
+      { target_field: 'FUND_CODE', source_field: 'Fund Identifier', confidence: 0.82 },
+      { target_field: 'TRADE_DATE', source_field: 'Transaction_Date', confidence: 0.86 },
+      { target_field: 'SETTLEMENT_DATE', source_field: 'Settle_Date', confidence: 0.96 },
+      { target_field: 'CURRENCY', source_field: 'Currency', confidence: 0.96 },
+      { target_field: 'UNIT_PRICE', source_field: 'Net Asset Value', confidence: 0.78 },
       { target_field: 'QUANTITY', source_field: 'Quantity', confidence: 0.96 },
-      { target_field: 'AMOUNT', source_field: 'Trade Amount', confidence: 0.95 },
+      { target_field: 'AMOUNT', source_field: 'Trade Amount', confidence: 0.83 },
     ],
     rows: [
       ["Thai Equity Opportunity Fund", "FID-2000", "2026-07-17", "2026-07-19", "THB", "15.6166", "3,200", "49,973.12", "KSS", "Mixed", "Equity"],
@@ -98,7 +98,7 @@ export const EXACT_EXCEL_SHEETS = {
     rowCount: 35,
     colCount: 11,
     note: "",
-    mappingSummary: "11 ฟิลด์จับคู่สมบูรณ์ (91.8% Confidence)",
+    mappingSummary: "11 ฟิลด์จับคู่สมบูรณ์ (86.9% Confidence)",
     dupRows: []
   },
   fund_manager_c: {
@@ -109,12 +109,12 @@ export const EXACT_EXCEL_SHEETS = {
     defaultMappings: [
       { target_field: 'FUND_NAME', source_field: 'Fund Name', confidence: 0.98 },
       { target_field: 'FUND_CODE', source_field: 'UNMATCHED', confidence: 0.0 },
-      { target_field: 'TRADE_DATE', source_field: 'Date', confidence: 0.95 },
-      { target_field: 'SETTLEMENT_DATE', source_field: 'Value Date', confidence: 0.92 },
-      { target_field: 'CURRENCY', source_field: 'Currency Code', confidence: 0.99 },
-      { target_field: 'UNIT_PRICE', source_field: 'Unit Price', confidence: 0.96 },
-      { target_field: 'QUANTITY', source_field: 'Units', confidence: 0.95 },
-      { target_field: 'AMOUNT', source_field: 'Total Value', confidence: 0.94 },
+      { target_field: 'TRADE_DATE', source_field: 'Date', confidence: 0.72 },
+      { target_field: 'SETTLEMENT_DATE', source_field: 'Value Date', confidence: 0.76 },
+      { target_field: 'CURRENCY', source_field: 'Currency Code', confidence: 0.96 },
+      { target_field: 'UNIT_PRICE', source_field: 'Unit Price', confidence: 0.98 },
+      { target_field: 'QUANTITY', source_field: 'Units', confidence: 0.79 },
+      { target_field: 'AMOUNT', source_field: 'Total Value', confidence: 0.83 },
     ],
     rows: [
       ["Emerging Market Equity Fund", "18-Aug-2026", "THB", "14.2377", "10,000", "142,377 THB", "Kiatnakin Phatra Securities", "19-Aug-2026", "Money Market"],
@@ -123,7 +123,7 @@ export const EXACT_EXCEL_SHEETS = {
     rowCount: 25,
     colCount: 9,
     note: "",
-    mappingSummary: "9 ฟิลด์จับคู่สมบูรณ์ (95.0% Confidence)",
+    mappingSummary: "9 ฟิลด์ (80.2% Confidence)",
     dupRows: []
   }
 };
@@ -144,7 +144,7 @@ const getRowValue = (rowObj: Record<string, any>, fieldName: string): string => 
 };
 
 export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSelectFieldForDrawer }) => {
-  const { process, activeSheetName, setActiveSheetName, openDrawer, openChangeModal, setSelectedMapping } = useProcessStore();
+  const { process, activeSheetName, setActiveSheetName, openDrawer, openChangeModal, setSelectedMapping, templates } = useProcessStore();
   const [activeSheetId, setActiveSheetId] = useState<string>('custodian_a');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'template' | 'source'>('template');
@@ -156,6 +156,30 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(15);
+
+  const activeTemplate = useMemo(() => {
+    return (
+      templates.find(
+        (t) =>
+          t.id === process?.target_template_id ||
+          t.name.toLowerCase() === (process?.target_template || '').toLowerCase()
+      ) || null
+    );
+  }, [templates, process?.target_template_id, process?.target_template]);
+
+  const activeTemplateFields = useMemo(() => {
+    if (activeTemplate && activeTemplate.fields && activeTemplate.fields.length > 0) {
+      return activeTemplate.fields.map((f) => ({
+        key: f.name,
+        label: f.name,
+        dataType: f.data_type,
+        required: f.required,
+        format: f.format,
+        description: f.description || f.name,
+      }));
+    }
+    return KKP_MASTER_TEMPLATE_FIELDS;
+  }, [activeTemplate]);
 
   useEffect(() => {
     if (activeSheetName) {
@@ -199,42 +223,43 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
   }, [sheetData, currentSheetFallback, activeHeaders.length]);
 
   const sheetMappings: FieldMapping[] = useMemo(() => {
+    let rawMappings: any[] = [];
     if (sheetData?.mappings && sheetData.mappings.length > 0) {
-      return sheetData.mappings;
+      rawMappings = sheetData.mappings;
+    } else if (process?.mappings && process.mappings.length > 0) {
+      rawMappings = process.mappings;
+    } else if (currentSheetFallback.defaultMappings) {
+      rawMappings = currentSheetFallback.defaultMappings;
     }
-    if (process?.mappings && process.mappings.length > 0) {
-      return process.mappings;
-    }
-    // Fallback to default demo mappings if available
-    if (currentSheetFallback.defaultMappings) {
-      return currentSheetFallback.defaultMappings.map((m, idx) => ({
-        id: `demo_${currentSheetFallback.id}_${idx}`,
-        process_id: 'proc_demo',
-        source_field: m.source_field,
-        source_sample: '-',
-        source_data_type: 'String',
-        target_field: m.target_field,
-        target_data_type: 'String',
-        target_required: true,
-        target_format: '-',
-        confidence: m.confidence,
-        confidence_level: m.confidence > 0.8 ? 'High' : 'Unmatched',
-        status: m.confidence > 0 ? 'ACCEPTED' : 'UNMATCHED',
-        reasons: [`จับคู่ตามรูปแบบ ${m.target_field}`],
-      }));
-    }
-    return [];
+
+    return rawMappings.map((m: any, idx: number) => {
+      const sourceCol = m.source_field || 'UNMATCHED';
+      const targetCol = m.target_field || '';
+      const scoring = calculateFieldMappingConfidence(sourceCol, targetCol, m.source_sample, m.target_data_type);
+
+      return {
+        id: m.id || `demo_${currentSheetFallback.id}_${idx}`,
+        process_id: m.process_id || 'proc_demo',
+        source_field: sourceCol,
+        source_sample: m.source_sample || '-',
+        source_data_type: m.source_data_type || 'String',
+        target_field: targetCol,
+        target_data_type: m.target_data_type || 'String',
+        target_required: m.target_required !== undefined ? m.target_required : true,
+        target_format: m.target_format || '-',
+        confidence: scoring.confidence,
+        confidence_level: scoring.confidenceLevel,
+        status: sourceCol !== 'UNMATCHED' ? (scoring.confidence >= 0.85 ? 'ACCEPTED' : 'SUGGESTED') : 'UNMATCHED',
+        reasons: [scoring.reason],
+      };
+    });
   }, [sheetData, process?.mappings, currentSheetFallback]);
 
   // 1. PRIMARY: FIELD TEMPLATE AS BASE COLUMNS
-  // Requirements:
-  // - Field ตั้งต้น Excel preview ต้องเป็น Field Template
-  // - ตามด้วย Field ที่มา Map จากต้นทาง
-  // - ถ้าอันไหน Map ไม่ได้ให้เว้นว่างไว้ทั้งแถว หรือขึ้น Unmatch เหมือนตารางจับคู่
   const templateColumnsInfo = useMemo(() => {
-    return KKP_MASTER_TEMPLATE_FIELDS.map((tf) => {
+    return activeTemplateFields.map((tf) => {
       let match = sheetMappings.find(
-        (m) => m.target_field && m.target_field.toUpperCase() === tf.key
+        (m) => m.target_field && m.target_field.toUpperCase() === tf.key.toUpperCase()
       );
 
       // Smart Fallback: Auto match if missing in sheetMappings
@@ -251,31 +276,39 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
           target_data_type: tf.dataType,
           target_required: tf.required,
           target_format: tf.format,
-          confidence: isAutoMatched ? 0.95 : 0.0,
-          confidence_level: isAutoMatched ? 'High' : 'Unmatched',
-          status: isAutoMatched ? 'ACCEPTED' : 'UNMATCHED',
+          confidence: auto.confidence,
+          confidence_level: auto.confidenceLevel,
+          status: isAutoMatched ? (auto.confidence >= 0.85 ? 'ACCEPTED' : 'SUGGESTED') : 'UNMATCHED',
           reasons: [auto.reason],
         };
       }
 
       const isMatched = !!(match && match.source_field && match.source_field !== 'UNMATCHED');
+      const scoring = isMatched && match?.source_field
+        ? calculateFieldMappingConfidence(match.source_field, tf.key, match.source_sample, tf.dataType)
+        : { confidence: 0, confidenceLevel: 'Unmatched' as const, reason: '', isTypeMismatch: false };
+      const finalConf = isMatched ? scoring.confidence : 0;
+
       return {
         templateField: tf,
-        mapping: match || null,
+        mapping: match ? { ...match, confidence: finalConf, confidence_level: scoring.confidenceLevel } : null,
         isMatched,
         sourceField: isMatched ? match!.source_field : null,
-        confidence: isMatched ? Math.round((match!.confidence || 0) * 100) : 0,
+        confidence: Math.round(finalConf * 100),
       };
     });
-  }, [sheetMappings, activeHeaders, process?.id]);
+  }, [sheetMappings, activeHeaders, process?.id, activeTemplateFields]);
 
   // Rows formatted according to Template Fields
   const templateRows = useMemo(() => {
     return rawRecords.map((rawObj, rowIndex) => {
       const cells = templateColumnsInfo.map((col) => {
         if (!col.isMatched || !col.sourceField) {
-          // ถ้าอันไหน Map ไม่ได้ให้เว้นว่างไว้ทั้งแถว
           return '';
+        }
+        const targetKey = col.templateField.key;
+        if (rawObj[targetKey] !== undefined && rawObj[targetKey] !== null && String(rawObj[targetKey]).trim() !== '') {
+          return String(rawObj[targetKey]);
         }
         return getRowValue(rawObj, col.sourceField);
       });
@@ -287,8 +320,22 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
     });
   }, [rawRecords, templateColumnsInfo]);
 
+  const displaySourceHeaders = useMemo(() => {
+    if (sheetData?.isKeyValueForm && sheetData?.rawFormPairs && sheetData.rawFormPairs.length > 0) {
+      return ['รายการ / ฟิลด์ข้อมูลในเอกสาร (Field Name)', 'ค่าข้อมูลที่อ่านได้จริง (Extracted Value)'];
+    }
+    return activeHeaders;
+  }, [sheetData, activeHeaders]);
+
   // Rows formatted according to Raw Source Columns (Alternative View)
   const sourceRows = useMemo(() => {
+    if (sheetData?.isKeyValueForm && sheetData?.rawFormPairs && sheetData.rawFormPairs.length > 0) {
+      return sheetData.rawFormPairs.map((p, idx) => ({
+        rowNum: idx + 1,
+        cells: [p.label, p.value],
+        rawObj: { [p.label]: p.value },
+      }));
+    }
     return rawRecords.map((rawObj, rowIndex) => {
       const cells = activeHeaders.map((h) => getRowValue(rawObj, h));
       return {
@@ -297,7 +344,7 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
         rawObj,
       };
     });
-  }, [rawRecords, activeHeaders]);
+  }, [rawRecords, activeHeaders, sheetData]);
 
   const currentDisplayRows = viewMode === 'template' ? templateRows : sourceRows;
 
@@ -448,7 +495,7 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
                       isActive ? "bg-slate-950 text-amber-300" : "bg-purple-900/80 text-purple-300"
                     }`}
                   >
-                    {matchedCount || 8}/8 ฟิลด์ ({sRowCount.toLocaleString()} แถว)
+                    {matchedCount || templateColumnsInfo.length}/{templateColumnsInfo.length} ฟิลด์ ({sRowCount.toLocaleString()} แถว)
                   </span>
                 </button>
               );
@@ -464,10 +511,10 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
                   ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
                   : 'text-purple-200 hover:text-white'
               }`}
-              title="คอลัมน์ตั้งต้นด้วย Field Template มาตรฐาน KKP 8 ฟิลด์"
+              title={`คอลัมน์ตั้งต้นด้วย Field Template มาตรฐาน KKP (${templateColumnsInfo.length} ฟิลด์)`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Target Template (8 ฟิลด์)</span>
+              <span>Target Template ({templateColumnsInfo.length} ฟิลด์)</span>
             </button>
             <button
               onClick={() => { setViewMode('source'); setCurrentPage(1); }}
@@ -479,7 +526,7 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
               title="แสดงตามคอลัมน์ดิบที่อยู่ในไฟล์ต้นทาง"
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>คอลัมน์ต้นทางดิบ ({activeHeaders.length})</span>
+              <span>คอลัมน์ต้นทางดิบ ({displaySourceHeaders.length})</span>
             </button>
           </div>
         </div>
@@ -585,7 +632,7 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
                             </>
                           ) : (
                             <span className="text-rose-400 font-bold italic flex items-center gap-1">
-                              <span>⚠️</span> UNMATCHED
+                              UNMATCHED
                             </span>
                           )}
                         </div>
@@ -614,7 +661,7 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
                   <th className="py-2.5 px-2 text-center w-12 bg-[#23153e] border-r border-purple-800/80 text-purple-300 select-none">
                     #
                   </th>
-                  {activeHeaders.map((colHeader, cIdx) => (
+                  {displaySourceHeaders.map((colHeader, cIdx) => (
                     <th
                       key={cIdx}
                       className="py-2.5 px-3 border-r border-purple-800/80 font-extrabold text-purple-100 select-none min-w-[130px]"
@@ -687,7 +734,7 @@ export const ExcelPreviewSection: React.FC<ExcelPreviewSectionProps> = ({ onSele
             ) : (
               <tr>
                 <td
-                  colSpan={(viewMode === 'template' ? templateColumnsInfo.length : activeHeaders.length) + 1}
+                  colSpan={(viewMode === 'template' ? templateColumnsInfo.length : displaySourceHeaders.length) + 1}
                   className="text-center py-12 text-slate-400 italic bg-slate-50 font-sans"
                 >
                   {searchQuery ? `ไม่พบข้อมูลที่ตรงกับ "${searchQuery}"` : 'ไม่พบข้อมูลแถวในชีทนี้'}

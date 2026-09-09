@@ -1,19 +1,50 @@
 package main
 
 import (
+	"bufio"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/kkp/ai-data-transformation/internal/ai"
 	"github.com/kkp/ai-data-transformation/internal/handler"
 	"github.com/kkp/ai-data-transformation/internal/parser"
 	"github.com/kkp/ai-data-transformation/internal/service"
 )
 
+func loadEnvFiles() {
+	envFiles := []string{".env", "../.env", "backend/.env"}
+	for _, f := range envFiles {
+		file, err := os.Open(f)
+		if err != nil {
+			continue
+		}
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				k := strings.TrimSpace(parts[0])
+				v := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+				if os.Getenv(k) == "" {
+					os.Setenv(k, v)
+				}
+			}
+		}
+		file.Close()
+		log.Printf("Loaded environment variables from %s", f)
+		break
+	}
+}
+
 func main() {
+	loadEnvFiles()
+
 	app := fiber.New(fiber.Config{
 		AppName: "KKP AI Data Transformation Platform API v1.0",
 	})
@@ -25,9 +56,8 @@ func main() {
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
 	}))
 
-	aiProvider := ai.NewMockAIProvider()
 	excelParser := parser.NewExcelParser()
-	transformSvc := service.NewTransformService(aiProvider, excelParser)
+	transformSvc := service.NewTransformService(nil, excelParser)
 	apiHandler := handler.NewHandler(transformSvc)
 
 	apiHandler.RegisterRoutes(app)

@@ -59,6 +59,8 @@ export interface ValidationSummary {
 
 export interface Process {
   id: string;
+  rawFile?: File;
+  history_title?: string;
   file_name: string;
   file_size: string;
   sheet_count: number;
@@ -86,7 +88,8 @@ export interface Process {
   mappings: FieldMapping[];
   previews: TransformationPreview[];
   extractedRecords?: any[];
-  sheetDataMap?: Record<string, { headers: string[]; rows: any[]; mappings: FieldMapping[] }>;
+  sheetDataMap?: Record<string, { headers: string[]; rows: any[]; mappings: FieldMapping[]; isKeyValueForm?: boolean; rawFormPairs?: { label: string; value: string }[] }>;
+  confirmedHeaders?: string[];
   validation?: ValidationSummary;
 }
 
@@ -94,10 +97,16 @@ export interface AuditLog {
   id: string;
   timestamp: string;
   user: string;
+  user_role?: string;
   action: string;
+  category?: 'INGESTION' | 'AI_MAPPING' | 'USER_VERIFY' | 'TEMPLATE_RULE' | 'EXPORT_SEAL' | 'SECURITY';
   file: string;
   mapping: string;
   status: string;
+  details?: string;
+  ip_address?: string;
+  checksum?: string;
+  confidence?: number;
 }
 
 export interface TargetField {
@@ -107,6 +116,7 @@ export interface TargetField {
   required: boolean;
   format?: string;
   description: string;
+  ai_reason?: string;
 }
 
 export interface TargetTemplate {
@@ -117,6 +127,7 @@ export interface TargetTemplate {
   field_count: number;
   status: string;
   updated_at: string;
+  ai_training_hints?: string;
   fields: TargetField[];
 }
 

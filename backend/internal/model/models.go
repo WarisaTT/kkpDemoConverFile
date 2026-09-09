@@ -117,9 +117,13 @@ type AuditLog struct {
 	Timestamp string `json:"timestamp"`
 	User      string `json:"user"`
 	Action    string `json:"action"`
+	Category  string `json:"category,omitempty"`
 	File      string `json:"file"`
 	Mapping   string `json:"mapping"`
 	Status    string `json:"status"`
+	Details   string `json:"details,omitempty"`
+	IPAddress string `json:"ip_address,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
 }
 
 // SystemStats contains high-level KPIs for executive dashboard.

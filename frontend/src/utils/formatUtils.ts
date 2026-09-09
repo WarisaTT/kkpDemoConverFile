@@ -59,8 +59,8 @@ export function formatTargetValue(field: string, val: any): { formattedVal: stri
   }
   const strVal = String(val).trim();
 
-  // 1. TRADE_DATE / SETTLEMENT_DATE -> YYYY-MM-DD
-  if (field === 'TRADE_DATE' || field === 'SETTLEMENT_DATE') {
+  // 1. DATE fields -> YYYY-MM-DD
+  if (field === 'TRADE_DATE' || field === 'SETTLEMENT_DATE' || field.toUpperCase().includes('DATE')) {
     // 1.1 Check if already YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
       return { formattedVal: strVal, ruleDescription: 'คงรูปแบบวันที่เดิม (ISO 8601 YYYY-MM-DD)', wasFormatted: false };
@@ -141,8 +141,11 @@ export function formatTargetValue(field: string, val: any): { formattedVal: stri
     return { formattedVal: strVal, ruleDescription: 'คงรูปแบบวันที่เดิม (ISO 8601)', wasFormatted: false };
   }
 
-  // 2. AMOUNT -> 2 decimals
-  if (field === 'AMOUNT') {
+  // 2. AMOUNT & 2 Decimal Fields (AMOUNT, DEBIT_AMOUNT, CREDIT_AMOUNT, BALANCE, TOTAL_NAV, FACE_VALUE)
+  const isTwoDecimalField = [
+    'AMOUNT', 'DEBIT_AMOUNT', 'CREDIT_AMOUNT', 'BALANCE', 'TOTAL_NAV', 'FACE_VALUE'
+  ].includes(field.toUpperCase()) || field.toUpperCase().endsWith('_AMOUNT') || field.toUpperCase().endsWith('_VAL');
+  if (isTwoDecimalField) {
     const cleaned = strVal.replace(/,/g, '');
     const num = parseFloat(cleaned);
     if (!isNaN(num)) {
@@ -151,8 +154,11 @@ export function formatTargetValue(field: string, val: any): { formattedVal: stri
     }
   }
 
-  // 3. UNIT_PRICE -> 4 decimals
-  if (field === 'UNIT_PRICE') {
+  // 3. 4 Decimal Price / Unit Fields (UNIT_PRICE, NAV_PER_UNIT, CLEAN_PRICE, OUTSTANDING_UNITS, QUANTITY)
+  const isFourDecimalField = [
+    'UNIT_PRICE', 'NAV_PER_UNIT', 'CLEAN_PRICE', 'OUTSTANDING_UNITS', 'QUANTITY'
+  ].includes(field.toUpperCase()) || field.toUpperCase().endsWith('_PRICE');
+  if (isFourDecimalField) {
     const cleaned = strVal.replace(/,/g, '');
     const num = parseFloat(cleaned);
     if (!isNaN(num)) {
@@ -161,32 +167,57 @@ export function formatTargetValue(field: string, val: any): { formattedVal: stri
     }
   }
 
-  // 4. QUANTITY -> Clean number
-  if (field === 'QUANTITY') {
-    const cleaned = strVal.replace(/,/g, '');
-    const num = parseFloat(cleaned);
+  // 4. Rate / Yield / Percentage Fields (COUPON_RATE, YIELD_PCT, NET_CHANGE)
+  const isRateField = ['COUPON_RATE', 'YIELD_PCT', 'NET_CHANGE'].includes(field.toUpperCase()) || field.toUpperCase().endsWith('_PCT') || field.toUpperCase().endsWith('_RATE');
+  if (isRateField) {
+    if (strVal.includes('%')) {
+      return { formattedVal: strVal, ruleDescription: 'คงรูปแบบอัตราร้อยละ (%)', wasFormatted: false };
+    }
+    const num = parseFloat(strVal.replace(/,/g, ''));
     if (!isNaN(num)) {
-      const formatted = num.toLocaleString('en-US', { maximumFractionDigits: 4 });
-      return { formattedVal: formatted, ruleDescription: 'แปลงตัวเลขจำนวนหน่วยและตัดอักขระพิเศษ', wasFormatted: strVal !== formatted };
+      const formatted = `${num.toFixed(2)}%`;
+      return { formattedVal: formatted, ruleDescription: 'จัดรูปแบบเป็นเปอร์เซ็นต์ (%)', wasFormatted: true };
     }
   }
 
-  // 5. CURRENCY -> ISO 4217 Uppercase
+  // 5. ACCOUNT_NO
+  if (field.toUpperCase() === 'ACCOUNT_NO') {
+    const digits = strVal.replace(/\D/g, '');
+    if (digits.length >= 10) {
+      const formatted = `${digits.slice(0, 3)}-${digits.slice(3, 4)}-${digits.slice(4, 9)}-${digits.slice(9, 10)}`;
+      return { formattedVal: formatted, ruleDescription: 'จัดรูปแบบเลขที่บัญชีมาตรฐาน KKP (XXX-X-XXXXX-X)', wasFormatted: true };
+    }
+    return { formattedVal: strVal, ruleDescription: 'เลขที่บัญชีธนาคาร', wasFormatted: false };
+  }
+
+  // 6. CURRENCY -> ISO 4217 Uppercase
   if (field === 'CURRENCY') {
     const upper = strVal.toUpperCase();
     return { formattedVal: upper, ruleDescription: 'แปลงตัวพิมพ์ใหญ่รหัส 3 ตัวอักษร ISO 4217', wasFormatted: strVal !== upper };
   }
 
-  // 6. FUND_CODE -> Uppercase
-  if (field === 'FUND_CODE') {
+  // 7. Identifiers & Codes (FUND_CODE, ISIN_CODE, REF_NUMBER, TXN_TYPE)
+  const isCodeField = ['FUND_CODE', 'ISIN_CODE', 'REF_NUMBER', 'TXN_TYPE'].includes(field.toUpperCase());
+  if (isCodeField) {
     const upper = strVal.toUpperCase();
     return { formattedVal: upper, ruleDescription: 'แปลงตัวพิมพ์ใหญ่และตัดช่องว่างหน้าหลัง', wasFormatted: strVal !== upper };
   }
 
-  // 7. FUND_NAME -> Trimmed text
-  if (field === 'FUND_NAME') {
+  // 8. Text Names (FUND_NAME, BOND_NAME, ISSUER)
+  if (['FUND_NAME', 'BOND_NAME', 'ISSUER'].includes(field.toUpperCase())) {
     return { formattedVal: strVal, ruleDescription: 'ทำความสะอาดข้อความและตัดช่องว่างส่วนเกิน', wasFormatted: false };
   }
 
   return { formattedVal: strVal, ruleDescription: 'จัดรูปแบบตามมาตรฐาน KKP', wasFormatted: false };
+}
+
+export function getSafeCellText(val: any): string {
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'object') {
+    if ('formattedVal' in val && val.formattedVal !== undefined && val.formattedVal !== null) {
+      return String(val.formattedVal);
+    }
+    return '';
+  }
+  return String(val);
 }

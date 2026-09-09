@@ -19,7 +19,11 @@ import {
   X,
   Edit3,
   RotateCcw,
+  Plus,
+  Trash2,
 } from 'lucide-react';
+import { MergeExcelModal } from './MergeExcelModal';
+import { getSafeCellText } from '@/utils/formatUtils';
 
 // Format helper function for display
 function formatTargetValue(field: string, val: any): { formattedVal: string; ruleDescription: string; wasFormatted: boolean } {
@@ -27,9 +31,10 @@ function formatTargetValue(field: string, val: any): { formattedVal: string; rul
     return { formattedVal: '-', ruleDescription: 'เว้นว่างตามข้อมูลต้นทาง', wasFormatted: false };
   }
   const strVal = String(val).trim();
+  const fUpper = (field || '').trim().toUpperCase();
 
-  // 1. TRADE_DATE / SETTLEMENT_DATE
-  if (field === 'TRADE_DATE' || field === 'SETTLEMENT_DATE') {
+  // 1. DATE fields
+  if (fUpper.includes('DATE') || fUpper.includes('DT')) {
     // DD/MM/YYYY or DD-MM-YYYY
     const dmyMatch = strVal.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (dmyMatch) {
@@ -54,51 +59,38 @@ function formatTargetValue(field: string, val: any): { formattedVal: string; rul
     return { formattedVal: strVal, ruleDescription: 'คงรูปแบบวันที่เดิม (ISO 8601)', wasFormatted: false };
   }
 
-  // 2. AMOUNT
-  if (field === 'AMOUNT') {
-    const cleaned = strVal.replace(/,/g, '');
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) {
-      const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      return { formattedVal: formatted, ruleDescription: 'จัดรูปแบบทศนิยม 2 ตำแหน่งคงที่ (Fixed 2 Decimals)', wasFormatted: true };
-    }
-  }
-
-  // 3. UNIT_PRICE
-  if (field === 'UNIT_PRICE') {
-    const cleaned = strVal.replace(/,/g, '');
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) {
-      const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-      return { formattedVal: formatted, ruleDescription: 'จัดรูปแบบทศนิยม 4 ตำแหน่ง (Standard 4 Decimals)', wasFormatted: true };
-    }
-  }
-
-  // 4. QUANTITY
-  if (field === 'QUANTITY') {
-    const cleaned = strVal.replace(/,/g, '');
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) {
-      const formatted = num.toLocaleString('en-US', { maximumFractionDigits: 4 });
-      return { formattedVal: formatted, ruleDescription: 'แปลงตัวเลขจำนวนหน่วยและตัดอักขระพิเศษ', wasFormatted: strVal !== formatted };
-    }
-  }
-
-  // 5. CURRENCY
-  if (field === 'CURRENCY') {
+  // 2. CURRENCY / CCY
+  if (fUpper === 'CURRENCY' || fUpper === 'CCY') {
     const upper = strVal.toUpperCase();
     return { formattedVal: upper, ruleDescription: 'แปลงตัวพิมพ์ใหญ่รหัส 3 ตัวอักษร ISO 4217', wasFormatted: strVal !== upper };
   }
 
-  // 6. FUND_CODE
-  if (field === 'FUND_CODE') {
-    const upper = strVal.toUpperCase();
-    return { formattedVal: upper, ruleDescription: 'แปลงตัวพิมพ์ใหญ่และตัดช่องว่างหน้าหลัง', wasFormatted: strVal !== upper };
+  // 3. Numeric / Decimal (AMOUNT, UNIT_PRICE, PAR_VALUE, TOTAL_ISSUE_SIZE, UNITS_OFFERED, COUPON_RATE, QTY, etc.)
+  if (
+    fUpper.includes('AMOUNT') ||
+    fUpper.includes('PRICE') ||
+    fUpper.includes('NAV') ||
+    fUpper.includes('SIZE') ||
+    fUpper.includes('PAR_VALUE') ||
+    fUpper.includes('VALUE') ||
+    fUpper.includes('RATE') ||
+    fUpper.includes('UNITS') ||
+    fUpper.includes('QTY') ||
+    fUpper.includes('QUANTITY')
+  ) {
+    const cleaned = strVal.replace(/,/g, '').replace(/\s*(บาท|หน่วย|THB|USD|%)\b/gi, '').trim();
+    const num = parseFloat(cleaned);
+    if (!isNaN(num)) {
+      const decimals = fUpper.includes('PRICE') || fUpper.includes('NAV') ? 4 : (fUpper.includes('UNITS') || fUpper.includes('QTY')) ? 0 : 2;
+      const formatted = num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 4 });
+      return { formattedVal: formatted, ruleDescription: `จัดรูปแบบตัวเลขทศนิยม ${decimals} ตำแหน่ง`, wasFormatted: strVal !== formatted };
+    }
   }
 
-  // 7. FUND_NAME
-  if (field === 'FUND_NAME') {
-    return { formattedVal: strVal, ruleDescription: 'ทำความสะอาดข้อความและตัดช่องว่างส่วนเกิน', wasFormatted: false };
+  // 4. Code / ID / No (INSTRUCTION_NO, ISIN_CODE, FUND_CODE, etc.)
+  if (fUpper.includes('CODE') || fUpper.includes('NO') || fUpper.includes('ISIN') || fUpper.includes('ID')) {
+    const upper = strVal.toUpperCase();
+    return { formattedVal: upper, ruleDescription: 'แปลงตัวพิมพ์ใหญ่และตัดช่องว่างหน้าหลัง', wasFormatted: strVal !== upper };
   }
 
   return { formattedVal: strVal, ruleDescription: 'จัดรูปแบบตามมาตรฐาน KKP', wasFormatted: false };
@@ -112,6 +104,7 @@ export const Step3FormatReviewSection: React.FC = () => {
     setProcess,
     activeSheetName,
     setActiveSheetName,
+    templates = [],
   } = useProcessStore();
   const sheetDataMap = (process as any)?.sheetDataMap || {};
 
@@ -183,7 +176,7 @@ export const Step3FormatReviewSection: React.FC = () => {
         unused.push({
           name: cleanCol,
           sampleVal: sampleVal || '-',
-          reason: 'ไม่อยู่ใน 8 ฟิลด์เป้าหมายมาตรฐานของ KKP_CUSTODIAN_TRADE_V2',
+          reason: `ไม่อยู่ในฟิลด์เป้าหมายของเทมเพลต ${process?.target_template || 'KKP Standard'}`,
         });
       }
     });
@@ -201,49 +194,126 @@ export const Step3FormatReviewSection: React.FC = () => {
     return list;
   }, []);
 
-  // 3. CLEAN DATA ROWS (ข้อมูลธุรกรรมจริงที่ผ่านการ Format)
+  const activeTemplate = useMemo(() => {
+    return (
+      templates.find(
+        (t) => t.id === process?.target_template_id || t.name === process?.target_template
+      ) || templates[0]
+    );
+  }, [templates, process]);
+
+  const activeTemplateFields = useMemo(() => {
+    if (activeTemplate?.fields && activeTemplate.fields.length > 0) {
+      return activeTemplate.fields;
+    }
+    const mappedTargets = (mappings || [])
+      .map((m: any) => m.target_field)
+      .filter((t: string) => t && t !== 'UNMATCHED');
+    if (mappedTargets.length > 0) {
+      return Array.from(new Set(mappedTargets)).map((name) => ({
+        id: name,
+        name,
+        description: name,
+        data_type: 'String',
+        required: true,
+        format: '-',
+      }));
+    }
+    return STANDARD_8_TARGET_FIELDS;
+  }, [activeTemplate, mappings]);
+
+  const targetFieldNames: string[] = useMemo(() => {
+    return activeTemplateFields.map((f: any) => f.name);
+  }, [activeTemplateFields]);
+
+  // 3. CLEAN DATA ROWS (ข้อมูลธุรกรรมจริงที่ผ่านการ Format และกรองแถวที่ไม่มี Fund Name)
   const formattedRows = useMemo(() => {
-    const rawRows = (currentSheetData?.rows || []).filter((r: any) => !isFootnoteOrNonDataRow(r, sourceHeaders.length || 8));
+    const rawRows = (currentSheetData?.rows || []).filter((r: any) => {
+      if (isFootnoteOrNonDataRow(r, sourceHeaders.length || 8)) return false;
+
+      // Ensure row has a valid Fund Name
+      const getRawFund = () => {
+        if (r['FUND_NAME'] !== undefined && r['FUND_NAME'] !== null && String(r['FUND_NAME']).trim() !== '') {
+          return r['FUND_NAME'];
+        }
+        const srcCol = targetToSource['FUND_NAME'];
+        if (srcCol && r[srcCol] !== undefined && r[srcCol] !== null && String(r[srcCol]).trim() !== '') {
+          return r[srcCol];
+        }
+        return '';
+      };
+      const fundVal = String(getRawFund()).trim();
+      if (!fundVal || fundVal === '-' || fundVal === 'null' || fundVal === 'undefined') {
+        return false; // Automatically omit non-transaction rows without Fund Name
+      }
+      return true;
+    });
+
     return rawRows.map((rawRow: any, idx: number) => {
       const getVal = (targetField: string) => {
+        if (rawRow[targetField] !== undefined && rawRow[targetField] !== null && String(rawRow[targetField]).trim() !== '') {
+          return typeof rawRow[targetField] === 'object' && 'formattedVal' in rawRow[targetField] ? rawRow[targetField].formattedVal : rawRow[targetField];
+        }
         const sourceCol = targetToSource[targetField];
-        if (sourceCol && rawRow[sourceCol] !== undefined && String(rawRow[sourceCol]).trim() !== '') {
-          return rawRow[sourceCol];
+        if (sourceCol && rawRow[sourceCol] !== undefined && rawRow[sourceCol] !== null && String(rawRow[sourceCol]).trim() !== '') {
+          return typeof rawRow[sourceCol] === 'object' && 'formattedVal' in rawRow[sourceCol] ? rawRow[sourceCol].formattedVal : rawRow[sourceCol];
         }
         return '';
       };
 
-      const fundName = getVal('FUND_NAME');
-      const fundCode = getVal('FUND_CODE') || `F${1000 + idx + 1}`;
-      const tradeDate = getVal('TRADE_DATE');
-      const settleDate = getVal('SETTLEMENT_DATE');
-      const ccy = getVal('CURRENCY') || 'THB';
-      const price = getVal('UNIT_PRICE');
-      const qty = getVal('QUANTITY');
-      const amt = getVal('AMOUNT');
+      const rowObj: Record<string, any> = { rowNum: idx + 1 };
+      targetFieldNames.forEach((tName) => {
+        rowObj[tName] = formatTargetValue(tName, getVal(tName));
+      });
 
-      return {
-        rowNum: idx + 1,
-        FUND_NAME: formatTargetValue('FUND_NAME', fundName),
-        FUND_CODE: formatTargetValue('FUND_CODE', fundCode),
-        TRADE_DATE: formatTargetValue('TRADE_DATE', tradeDate),
-        SETTLEMENT_DATE: formatTargetValue('SETTLEMENT_DATE', settleDate),
-        CURRENCY: formatTargetValue('CURRENCY', ccy),
-        UNIT_PRICE: formatTargetValue('UNIT_PRICE', price),
-        QUANTITY: formatTargetValue('QUANTITY', qty),
-        AMOUNT: formatTargetValue('AMOUNT', amt),
-      };
+      return rowObj;
     });
-  }, [currentSheetData, sourceHeaders.length, targetToSource]);
+  }, [currentSheetData, sourceHeaders.length, targetToSource, targetFieldNames]);
 
   const [editableRows, setEditableRows] = useState<any[]>([]);
+  const [columnsList, setColumnsList] = useState<string[]>([]);
+  const [deletedRowNums, setDeletedRowNums] = useState<Set<number>>(new Set());
 
-  // Synchronize formattedRows into editableRows
+  useEffect(() => {
+    if (targetFieldNames.length > 0) {
+      setColumnsList(targetFieldNames);
+    }
+  }, [targetFieldNames]);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState<boolean>(false);
+
+  const handleDeleteRow = (rowNum: number) => {
+    setEditableRows((prev) => prev.filter((r) => r.rowNum !== rowNum));
+    setDeletedRowNums((prev) => new Set(prev).add(rowNum));
+  };
+
+  const handleDeleteColumn = (colName: string) => {
+    setColumnsList((prev) => prev.filter((c) => c !== colName));
+  };
+
+  const handleConfirmMerge = (mergedRows: any[], newCols: string[]) => {
+    setColumnsList((prev) => {
+      const updated = [...prev];
+      newCols.forEach((c) => {
+        if (!updated.includes(c)) updated.push(c);
+      });
+      return updated;
+    });
+
+    if (mergedRows && mergedRows.length > 0) {
+      setEditableRows(mergedRows.map((r: any, idx: number) => ({ ...r, rowNum: idx + 1 })));
+    }
+  };
+
+  // Synchronize formattedRows into editableRows while preserving user deletions
   useEffect(() => {
     if (formattedRows && formattedRows.length > 0) {
-      setEditableRows(formattedRows.map((r: any) => ({ ...r })));
+      setEditableRows(
+        formattedRows
+          .filter((r: any) => !deletedRowNums.has(r.rowNum))
+          .map((r: any) => ({ ...r }))
+      );
     }
-  }, [formattedRows]);
+  }, [formattedRows, deletedRowNums]);
 
   const handleCellChange = (rowNum: number, field: string, value: string) => {
     setEditableRows((prev) =>
@@ -291,25 +361,27 @@ export const Step3FormatReviewSection: React.FC = () => {
   // 4. SUMMARY OF APPLIED FORMATTING RULES (สำหรับ Card สรุปว่า Format อะไรบ้าง)
   const formatRulesSummary = useMemo(() => {
     const sampleRow = currentSheetData?.rows?.[0] || {};
-    return STANDARD_8_TARGET_FIELDS.map((tf) => {
+    return activeTemplateFields.map((tf: any) => {
       const sourceCol = targetToSource[tf.name] || 'UNMATCHED';
       const isMapped = sourceCol !== 'UNMATCHED';
-      const rawSample = isMapped && sampleRow[sourceCol] !== undefined ? String(sampleRow[sourceCol]) : '-';
-      const fmtResult = formatTargetValue(tf.name, rawSample !== '-' ? rawSample : (tf.name === 'TRADE_DATE' ? '15/07/2026' : tf.name === 'SETTLEMENT_DATE' ? '17/07/2026' : tf.name === 'AMOUNT' ? '35429.50' : tf.name === 'CURRENCY' ? 'thb' : '-'));
+      const rawSample = isMapped && sampleRow[sourceCol] !== undefined && sampleRow[sourceCol] !== null ? String(sampleRow[sourceCol]).trim() : '';
+      const fmtResult = isMapped && rawSample
+        ? formatTargetValue(tf.name, rawSample)
+        : { formattedVal: '-', ruleDescription: isMapped ? 'เว้นว่างตามข้อมูลต้นทาง' : 'ยังไม่ได้แมชฟิลด์ (UNMATCHED - เว้นว่าง)', wasFormatted: false };
 
       return {
         field: tf.name,
-        description: tf.description,
-        dataType: tf.data_type,
+        description: tf.description || tf.name,
+        dataType: tf.data_type || 'String',
         sourceCol,
         isMapped,
         ruleApplied: fmtResult.ruleDescription,
-        sampleBefore: rawSample !== '-' ? rawSample : (tf.name === 'TRADE_DATE' ? '15/07/2026' : tf.name === 'AMOUNT' ? '35,429.50' : '-'),
+        sampleBefore: isMapped && rawSample ? rawSample : '-',
         sampleAfter: fmtResult.formattedVal,
-        wasFormatted: true,
+        wasFormatted: fmtResult.wasFormatted,
       };
     });
-  }, [targetToSource, currentSheetData]);
+  }, [targetToSource, currentSheetData, activeTemplateFields]);
 
   // Handle Proceed to Step 4
   const handleConfirmAndProceed = async () => {
@@ -317,25 +389,71 @@ export const Step3FormatReviewSection: React.FC = () => {
 
     if (process) {
       const activeRows = editableRows.length > 0 ? editableRows : formattedRows;
-      const cleanRows = activeRows.map((r: any) => ({
-        FUND_NAME: r.FUND_NAME?.formattedVal || r.FUND_NAME || '-',
-        FUND_CODE: r.FUND_CODE?.formattedVal || r.FUND_CODE || '-',
-        TRADE_DATE: r.TRADE_DATE?.formattedVal || r.TRADE_DATE || '-',
-        SETTLEMENT_DATE: r.SETTLEMENT_DATE?.formattedVal || r.SETTLEMENT_DATE || '-',
-        CURRENCY: r.CURRENCY?.formattedVal || r.CURRENCY || 'THB',
-        UNIT_PRICE: r.UNIT_PRICE?.formattedVal || r.UNIT_PRICE || '0.0000',
-        QUANTITY: r.QUANTITY?.formattedVal || r.QUANTITY || '0',
-        AMOUNT: r.AMOUNT?.formattedVal || r.AMOUNT || '0.00',
-        sheetName: currentSheet,
-      }));
+      const cleanRows = activeRows
+        .map((r: any, idx: number) => {
+          const rowObj: Record<string, any> = { id: idx + 1, sheetName: currentSheet };
+          columnsList.forEach((col) => {
+            const raw = r[col];
+            const val = typeof raw === 'object' && raw !== null && 'formattedVal' in raw ? raw.formattedVal : raw;
+            rowObj[col] = val !== undefined && val !== null && String(val).trim() !== '' ? String(val).trim() : '-';
+          });
+          return rowObj;
+        })
+        .filter((rowObj: any) => {
+          const fn = rowObj['FUND_NAME'] ?? rowObj['Fund Name'] ?? rowObj['fund_name'];
+          const strFn = String(fn ?? '').trim();
+          return strFn !== '' && strFn !== '-' && strFn !== 'null' && strFn !== 'undefined';
+        });
 
       const updatedSheetMap = { ...(process.sheetDataMap || {}) };
       if (updatedSheetMap[currentSheet]) {
         updatedSheetMap[currentSheet] = {
           ...updatedSheetMap[currentSheet],
+          headers: [...columnsList],
           rows: cleanRows,
         };
       }
+
+      // Also ensure all other sheets are transformed to the target template columnsList
+      Object.keys(updatedSheetMap).forEach((sName) => {
+        if (sName !== currentSheet) {
+          const sData = updatedSheetMap[sName];
+          const sMappings = sData.mappings || process.mappings || [];
+          const tToS: Record<string, string> = {};
+          sMappings.forEach((m: any) => {
+            if (m.target_field && m.source_field && m.source_field !== 'UNMATCHED') {
+              tToS[m.target_field] = m.source_field;
+            }
+          });
+          const rawRows = (sData.rows || []).filter((r: any) => !isFootnoteOrNonDataRow(r, (sData.headers || []).length || 8));
+          const transformed = rawRows
+            .map((rawRow: any, idx: number) => {
+              const rowObj: Record<string, any> = { id: idx + 1, sheetName: sName };
+              columnsList.forEach((col) => {
+                let v = rawRow[col];
+                if (v === undefined || v === null || String(v).trim() === '') {
+                  const sc = tToS[col];
+                  if (sc && rawRow[sc] !== undefined && rawRow[sc] !== null) {
+                    v = rawRow[sc];
+                  }
+                }
+                const val = typeof v === 'object' && v !== null && 'formattedVal' in v ? v.formattedVal : v;
+                rowObj[col] = val !== undefined && val !== null && String(val).trim() !== '' ? String(val).trim() : '-';
+              });
+              return rowObj;
+            })
+            .filter((rowObj: any) => {
+              const fn = rowObj['FUND_NAME'] ?? rowObj['Fund Name'] ?? rowObj['fund_name'];
+              const strFn = String(fn ?? '').trim();
+              return strFn !== '' && strFn !== '-' && strFn !== 'null' && strFn !== 'undefined';
+            });
+          updatedSheetMap[sName] = {
+            ...sData,
+            headers: [...columnsList],
+            rows: transformed,
+          };
+        }
+      });
 
       setProcess({
         ...process,
@@ -343,6 +461,7 @@ export const Step3FormatReviewSection: React.FC = () => {
         current_step: 4,
         extractedRecords: cleanRows,
         sheetDataMap: updatedSheetMap,
+        confirmedHeaders: [...columnsList],
       });
     }
 
@@ -371,7 +490,7 @@ export const Step3FormatReviewSection: React.FC = () => {
               ตรวจสอบผลการจัด Format ข้อมูล & รายการที่ไม่ได้ใช้งาน
             </h2>
             <p className="text-xs text-purple-200 leading-relaxed">
-              ระบบ AI ได้ทำการแปลงรูปแบบข้อมูลให้อยู่ในมาตรฐาน KKP_CUSTODIAN_TRADE_V2 และตัดแถวที่ไม่ใช่ข้อมูลธุรกรรมออกโดยอัตโนมัติ กรุณาตรวจสอบรายละเอียดความถูกต้องก่อนกดยืนยันเพื่อเสร็จสมบูรณ์
+              ระบบ AI ได้ทำการแปลงรูปแบบข้อมูลให้อยู่ในมาตรฐาน {activeTemplate?.name || 'KKP Standard'} และตัดแถวที่ไม่ใช่ข้อมูลธุรกรรมออกโดยอัตโนมัติ กรุณาตรวจสอบรายละเอียดความถูกต้องก่อนกดยืนยันเพื่อเสร็จสมบูรณ์
             </p>
           </div>
 
@@ -392,7 +511,7 @@ export const Step3FormatReviewSection: React.FC = () => {
           </div>
           <div className="bg-purple-950/40 px-3.5 py-2 rounded-xl border border-purple-800/40">
             <div className="text-[11px] text-purple-300">ฟิลด์มาตรฐาน KKP</div>
-            <div className="text-lg font-black text-white">8/8 ฟิลด์ (100%)</div>
+            <div className="text-lg font-black text-white">{activeTemplateFields.length}/{activeTemplateFields.length} ฟิลด์ (100%)</div>
           </div>
           <div className="bg-purple-950/40 px-3.5 py-2 rounded-xl border border-purple-800/40">
             <div className="text-[11px] text-purple-300">คอลัมน์ที่ไม่ได้ใช้งาน</div>
@@ -407,11 +526,21 @@ export const Step3FormatReviewSection: React.FC = () => {
 
       {/* 2. Main Navigation Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
+        <button
+          onClick={() => setActiveTab('preview')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${activeTab === 'preview'
+              ? 'bg-[#107c41] text-white shadow-sm scale-[1.02]'
+              : 'text-slate-600 hover:bg-slate-100'
+            }`}
+        >
+          <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+          <span>ได้ข้อมูลสุดท้ายเป็นยังไง ({formattedRows.length} รายการ)</span>
+        </button>
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab('formats')}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
-              activeTab === 'formats'
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${activeTab === 'formats'
                 ? 'bg-[#2e1d52] text-white shadow-sm scale-[1.02]'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
@@ -430,18 +559,6 @@ export const Step3FormatReviewSection: React.FC = () => {
           >
             <Ban className="w-4 h-4 text-red-300" />
             <span>2. ข้อมูลอะไรที่ไม่ได้ใช้บ้าง ({unusedSourceColumns.length + excludedRows.length} รายการ)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
-              activeTab === 'preview'
-                ? 'bg-[#107c41] text-white shadow-sm scale-[1.02]'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
-            <span>3. ได้ข้อมูลสุดท้ายเป็นยังไง ({formattedRows.length} รายการ)</span>
           </button>
         </div>
 
@@ -555,14 +672,11 @@ export const Step3FormatReviewSection: React.FC = () => {
                     คอลัมน์ต้นทางที่ไม่ได้ใช้งาน (Unused Source Columns: {unusedSourceColumns.length} คอลัมน์)
                   </h3>
                   <p className="text-xs text-amber-800 font-medium">
-                    คอลัมน์เหล่านี้มีอยู่ในไฟล์ Excel ต้นฉบับ แต่ไม่ได้กำหนดไว้ใน 8 ฟิลด์มาตรฐานของ KKP จึงถูกคัดออกและไม่นำเข้าสู่ผลลัพธ์
+                    คอลัมน์เหล่านี้มีอยู่ในไฟล์ Excel ต้นฉบับ แต่ไม่ได้กำหนดไว้ในฟิลด์เป้าหมายของเทมเพลต ({activeTemplate?.name || 'KKP Standard'}) จึงถูกคัดออกและไม่นำเข้าสู่ผลลัพธ์
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold bg-amber-200/80 text-amber-950 px-2.5 py-1 rounded-lg">
-                Excluded from Target
-              </span>
-            </div>
+              </div>
 
             {unusedSourceColumns.length > 0 ? (
               <div className="overflow-x-auto">
@@ -586,7 +700,7 @@ export const Step3FormatReviewSection: React.FC = () => {
                         <td className="py-3 px-4 text-slate-600">{col.reason}</td>
                         <td className="py-3 px-4 text-center">
                           <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
-                            ไม่ได้นำเข้า (Unused)
+                            Unused
                           </span>
                         </td>
                       </tr>
@@ -640,7 +754,7 @@ export const Step3FormatReviewSection: React.FC = () => {
                       <td className="py-3 px-4 text-slate-700 font-semibold">{r.reason}</td>
                       <td className="py-3 px-4 text-center">
                         <span className="text-[11px] font-extrabold bg-red-100 text-red-800 px-2.5 py-0.5 rounded-full border border-red-200">
-                          ตัดทิ้ง ✓
+                          ตัดทิ้ง
                         </span>
                       </td>
                     </tr>
@@ -671,6 +785,16 @@ export const Step3FormatReviewSection: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
+                onClick={() => setIsMergeModalOpen(true)}
+                className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition"
+                title="นำเข้าคอลัมน์จากไฟล์ Excel อื่นด้วย AI Join"
+              >
+                <Plus className="w-4 h-4 text-slate-950 stroke-[3]" />
+                <span>เพิ่ม Column จาก Excel อื่น (AI Join)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleResetToAI}
                 className="px-2.5 py-1.5 text-xs font-bold text-purple-200 hover:text-white bg-purple-900/70 hover:bg-purple-800 rounded-xl border border-purple-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 title="รีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเดิมที่ AI จัด Format"
@@ -689,7 +813,7 @@ export const Step3FormatReviewSection: React.FC = () => {
                     setSearchQuery(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="pl-8 pr-3 py-1.5 text-xs rounded-xl bg-purple-950/60 border border-purple-800 text-white placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-amber-400 w-56"
+                  className="pl-8 pr-3 py-1.5 text-xs rounded-xl bg-purple-950/60 border border-purple-800 text-white placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-amber-400 w-48"
                 />
               </div>
             </div>
@@ -700,14 +824,24 @@ export const Step3FormatReviewSection: React.FC = () => {
               <thead>
                 <tr className="bg-slate-100 text-slate-700 font-extrabold border-b border-slate-300 text-[11px] uppercase">
                   <th className="py-2.5 px-3 text-center w-12">#</th>
-                  <th className="py-2.5 px-3 min-w-[200px]">FUND_NAME</th>
-                  <th className="py-2.5 px-3 w-32">FUND_CODE</th>
-                  <th className="py-2.5 px-3 w-32">TRADE_DATE</th>
-                  <th className="py-2.5 px-3 w-32">SETTLEMENT_DATE</th>
-                  <th className="py-2.5 px-3 text-center w-24">CURRENCY</th>
-                  <th className="py-2.5 px-3 text-right w-28">UNIT_PRICE</th>
-                  <th className="py-2.5 px-3 text-right w-28">QUANTITY</th>
-                  <th className="py-2.5 px-3 text-right w-32">AMOUNT</th>
+                  {columnsList.map((col) => (
+                    <th key={col} className="py-2.5 px-3 min-w-[130px]">
+                      <div className="flex items-center justify-between gap-1 group">
+                        <span className="truncate">{col}</span>
+                        {columnsList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteColumn(col)}
+                            className="text-slate-300 hover:text-red-600 transition opacity-0 group-hover:opacity-100 p-1 rounded cursor-pointer"
+                            title={`ลบคอลัมน์ ${col}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                  <th className="py-2.5 px-3 text-center w-14">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium text-slate-800">
@@ -728,84 +862,28 @@ export const Step3FormatReviewSection: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* FUND_NAME */}
-                    <td className="py-1.5 px-2">
-                      <input
-                        type="text"
-                        value={row.FUND_NAME?.formattedVal ?? row.FUND_NAME ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'FUND_NAME', e.target.value)}
-                        className="w-full px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-semibold text-[#2e1d52] focus:outline-none transition text-xs"
-                      />
-                    </td>
+                    {/* Dynamic Columns Cell Inputs */}
+                    {columnsList.map((col) => (
+                      <td key={col} className="py-1.5 px-2">
+                        <input
+                          type="text"
+                          value={getSafeCellText(row[col])}
+                          onChange={(e) => handleCellChange(row.rowNum, col, e.target.value)}
+                          className="w-full px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-semibold text-slate-900 focus:outline-none transition text-xs"
+                        />
+                      </td>
+                    ))}
 
-                    {/* FUND_CODE */}
-                    <td className="py-1.5 px-2">
-                      <input
-                        type="text"
-                        value={row.FUND_CODE?.formattedVal ?? row.FUND_CODE ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'FUND_CODE', e.target.value)}
-                        className="w-full px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-mono font-bold text-purple-900 focus:outline-none transition text-xs"
-                      />
-                    </td>
-
-                    {/* TRADE_DATE */}
-                    <td className="py-1.5 px-2">
-                      <input
-                        type="text"
-                        value={row.TRADE_DATE?.formattedVal ?? row.TRADE_DATE ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'TRADE_DATE', e.target.value)}
-                        className="w-full px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-mono text-slate-800 focus:outline-none transition text-xs"
-                      />
-                    </td>
-
-                    {/* SETTLEMENT_DATE */}
-                    <td className="py-1.5 px-2">
-                      <input
-                        type="text"
-                        value={row.SETTLEMENT_DATE?.formattedVal ?? row.SETTLEMENT_DATE ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'SETTLEMENT_DATE', e.target.value)}
-                        className="w-full px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-mono text-slate-800 focus:outline-none transition text-xs"
-                      />
-                    </td>
-
-                    {/* CURRENCY */}
+                    {/* Row Action Delete Button */}
                     <td className="py-1.5 px-2 text-center">
-                      <input
-                        type="text"
-                        value={row.CURRENCY?.formattedVal ?? row.CURRENCY ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'CURRENCY', e.target.value)}
-                        className="w-20 text-center px-1.5 py-1 uppercase bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-mono font-extrabold text-slate-800 focus:outline-none transition text-xs"
-                      />
-                    </td>
-
-                    {/* UNIT_PRICE */}
-                    <td className="py-1.5 px-2">
-                      <input
-                        type="text"
-                        value={row.UNIT_PRICE?.formattedVal ?? row.UNIT_PRICE ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'UNIT_PRICE', e.target.value)}
-                        className="w-full text-right px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-mono text-slate-800 focus:outline-none transition text-xs"
-                      />
-                    </td>
-
-                    {/* QUANTITY */}
-                    <td className="py-1.5 px-2">
-                      <input
-                        type="text"
-                        value={row.QUANTITY?.formattedVal ?? row.QUANTITY ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'QUANTITY', e.target.value)}
-                        className="w-full text-right px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-mono text-slate-800 focus:outline-none transition text-xs"
-                      />
-                    </td>
-
-                    {/* AMOUNT */}
-                    <td className="py-1.5 px-2">
-                      <input
-                        type="text"
-                        value={row.AMOUNT?.formattedVal ?? row.AMOUNT ?? ''}
-                        onChange={(e) => handleCellChange(row.rowNum, 'AMOUNT', e.target.value)}
-                        className="w-full text-right px-2 py-1 bg-transparent hover:bg-purple-50/70 focus:bg-white border border-transparent hover:border-slate-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-lg font-mono font-extrabold text-emerald-800 focus:outline-none transition text-xs"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRow(row.rowNum)}
+                        className="text-slate-300 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition cursor-pointer"
+                        title={`ลบแถวที่ ${row.rowNum}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -913,6 +991,15 @@ export const Step3FormatReviewSection: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Merge Excel Modal */}
+      <MergeExcelModal
+        isOpen={isMergeModalOpen}
+        onClose={() => setIsMergeModalOpen(false)}
+        currentRows={editableRows.length > 0 ? editableRows : formattedRows}
+        currentHeaders={columnsList}
+        onConfirmMerge={handleConfirmMerge}
+      />
     </div>
   );
 };

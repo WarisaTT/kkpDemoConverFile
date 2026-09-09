@@ -1,10 +1,10 @@
-# 🏦 KKP AI Data Transformation Platform
+# KKP AI Data Transformation Platform
 
 > **Enterprise Financial Data Transformation & Semantic Mapping System for Kiatnakin Phatra Financial Group (KKP)**
 
 ![KKP AI Data Transformation Platform](./uiINIT.png)
 
-## 📌 Executive Summary
+## Executive Summary
 
 Source Excel/CSV files received from custodians, fund managers, and sub-agencies often use heterogeneous schemas and field names:
 - **Source A**: `Fund_Name`, `Trade Date`, `CCY`, `NAV`, `Qty`, `Amount`
@@ -13,13 +13,13 @@ Source Excel/CSV files received from custodians, fund managers, and sub-agencies
 
 The **KKP AI Data Transformation Platform** uses AI-powered semantic understanding to map, validate, and standardize incoming financial datasets into KKP's official standard format (`KKP_CUSTODIAN_TRADE_V2`).
 
-### 🎯 Core Philosophy
+### Core Philosophy
 > *"Source files can be different, but the output must always follow the standardized target format."*
 > **AI Suggests. Human Approves. System Transforms. Validation Protects.**
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 1. **Enterprise Banking UI**: Designed specifically for financial technology with KKP Deep Purple corporate branding (`#2e1d52`), rounded cards (`16px`), and high-trust status indicators.
 2. **AI Field Mapping & Explanation Panel**: Displays confidence percentages (High ≥90%, Medium 70-89%, Low <70%) with a right-side drawer providing natural language AI reasoning.
@@ -31,7 +31,7 @@ The **KKP AI Data Transformation Platform** uses AI-powered semantic understandi
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Framework**: Next.js 15+ (App Router)
@@ -53,7 +53,25 @@ The **KKP AI Data Transformation Platform** uses AI-powered semantic understandi
 
 ---
 
-## 💻 Local Quick Start
+## File Parsing & Processing Architecture
+
+ตารางและภาพรวม Library / Native API ที่ใช้จัดการและประมวลผลไฟล์แต่ละประเภททั้งฝั่ง Frontend และ Backend (Go):
+
+![File Parsing Libraries](./file_parsers.png)
+
+| ประเภทไฟล์ | Frontend | Backend (Go) | ประเภท |
+| :--- | :--- | :--- | :--- |
+| **Excel .xlsx/.xls** | `xlsx (SheetJS)` | `github.com/xuri/excelize/v2` | Third-party |
+| **CSV .csv** | `xlsx + Native Parser` | `encoding/csv` | Go Standard Library |
+| **JSON .json** | `JSON.parse` | `encoding/json` | Go Standard Library |
+| **XML .xml** | — | `encoding/xml` | Go Standard Library |
+| **TXT .txt** | `JSON.parse / Text Parser` | `os, io, bytes ฯลฯ` | Go Standard Library |
+| **Email .eml/.msg** | `FileReader, file.text(), atob + Regex` | — | Browser Native API |
+| **PDF .pdf** | `ArrayBuffer + Regex/Stream parsing` | ยังไม่เห็น PDF Library ใน Code ที่ส่งมา | — |
+
+---
+
+## Local Quick Start
 
 ### 1. Run Backend (Golang)
 ```bash
@@ -77,7 +95,7 @@ docker-compose up --build
 
 ---
 
-## 📸 Demo Workflow Steps
+## Demo Workflow Steps
 
 1. Open `http://localhost:3000` (Defaults to **New Process** step 2 matching `uiINIT.png`).
 2. Observe the top **Source File** card, **AI Analysis Progress** gauge (75%), and **AI Analysis Summary**.

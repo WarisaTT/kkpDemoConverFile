@@ -78,9 +78,6 @@ export const AIMappingView: React.FC = () => {
               <h2 className="text-lg font-extrabold text-white tracking-wide">
                 ระบบการเรียนรู้การจับคู่ฟิลด์ด้วย AI (AI Mapping Memory & Training Logs)
               </h2>
-              <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase">
-                AI Memory Log
-              </span>
             </div>
             <p className="text-purple-200/90 text-xs mt-1">
               บันทึกและจัดการหน่วยความจำการจับคู่ฟิลด์ที่ AI จดจำจากการปรับแก้ไขของผู้ใช้ เพื่อความแม่นยำในการแปลงไฟล์ครั้งถัดไป
@@ -144,7 +141,7 @@ export const AIMappingView: React.FC = () => {
         <div className="banking-card p-4 flex items-center justify-between">
           <div>
             <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              เปิดใช้งานอยู่ (Active)
+              ใช้งานอยู่ (Active)
             </div>
             <div className="text-2xl font-black text-purple-950 mt-0.5">
               {activeCount}/{safeRules.length} กฎ
@@ -230,13 +227,12 @@ export const AIMappingView: React.FC = () => {
                     <td className="py-3.5 px-4 text-center">
                       <button
                         onClick={() => toggleLearnedRule(rule.id)}
-                        className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full transition border ${
-                          rule.is_active
+                        className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full transition border ${rule.is_active
                             ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
                             : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'
-                        }`}
+                          }`}
                       >
-                        {rule.is_active ? '✓ เปิดใช้งาน' : '✕ ปิดใช้งาน'}
+                        {rule.is_active ? '✓ ใช้งาน' : '✕ ปิดใช้งาน'}
                       </button>
                     </td>
 
