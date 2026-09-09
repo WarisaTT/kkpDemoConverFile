@@ -71,7 +71,12 @@ export const FullScreenStep2ConfirmationModal: React.FC<FullScreenStep2Confirmat
         let conf = 0.0;
         let reason = `ไม่พบคอลัมน์ที่จับคู่กับ ${tf.name}`;
 
-        if (foundM && foundM.source_field && foundM.source_field !== 'UNMATCHED') {
+        if (foundM && (!foundM.source_field || foundM.source_field === 'UNMATCHED')) {
+          srcCol = 'UNMATCHED';
+          sampleVal = '-';
+          conf = 0.0;
+          reason = `ผู้ใช้กำหนดไม่ระบุคอลัมน์สำหรับ ${tf.name}`;
+        } else if (foundM && foundM.source_field && foundM.source_field !== 'UNMATCHED') {
           srcCol = foundM.source_field;
           const liveSample = firstRow[srcCol];
           sampleVal = getAiDerivedFieldValue(tf.name, srcCol, liveSample, firstRow, 0);

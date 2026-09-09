@@ -73,6 +73,7 @@ export interface Process {
   step_name?: string;
   status: string;
   overall_confidence: number;
+  initial_overall_confidence?: number;
   created_at: string;
   analysis_progress: number;
   analysis_summary?: {
@@ -148,4 +149,24 @@ export interface AILearnedRule {
   learned_at: string;
   is_active: boolean;
   remember_forever: boolean;
+}
+
+export interface SavedMappingPair {
+  sourceField: string;
+  targetField: string;
+  confidence: number;
+  status: string;
+}
+
+export interface MappingMemoryEntry {
+  fingerprint: string;
+  headers: string[];
+  templateId: string;
+  templateName: string;
+  mappings: SavedMappingPair[];
+  savedAt: string;
+  savedBy: string;
+  fileName: string;
+  processId: string;
+  useCount: number;
 }

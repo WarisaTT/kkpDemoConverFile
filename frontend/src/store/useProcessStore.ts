@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { create } from 'zustand';
-import { Process, FieldMapping, AuditLog, TargetTemplate, TargetField, SystemStats, AILearnedRule } from '@/types';
+import { Process, FieldMapping, AuditLog, TargetTemplate, TargetField, SystemStats, AILearnedRule, MappingMemoryEntry, SavedMappingPair } from '@/types';
 import { formatTargetValue } from '@/utils/formatUtils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -10,6 +10,9 @@ interface ProcessState {
   setActiveTab: (tab: string) => void;
   currentStep: number;
   setCurrentStep: (step: number) => void;
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 
   activeSheetName: string;
   checkedFieldIds: Record<string, boolean>;
@@ -234,6 +237,97 @@ const saveStoredRules = (rules: AILearnedRule[]) => {
     localStorage.setItem('kkp_ai_rules', JSON.stringify(rules));
   } catch (e) {
     console.error('Error saving rules:', e);
+  }
+};
+
+// ==================== MAPPING MEMORY (Header Fingerprint Learning) ====================
+
+export function generateHeaderFingerprint(headers: string[]): string {
+  const normalized = headers
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+    .join('|');
+  // Simple hash (djb2)
+  let hash = 5381;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = ((hash << 5) + hash + normalized.charCodeAt(i)) & 0xffffffff;
+  }
+  return `fp_${Math.abs(hash).toString(36)}`;
+}
+
+const getStoredMappingMemory = (): MappingMemoryEntry[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const saved = localStorage.getItem('kkp_mapping_memory');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error('Error loading mapping memory:', e);
+  }
+  return [];
+};
+
+const saveStoredMappingMemory = (entries: MappingMemoryEntry[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('kkp_mapping_memory', JSON.stringify(entries));
+  } catch (e) {
+    console.error('Error saving mapping memory:', e);
+  }
+};
+
+const findMatchingMemory = (headers: string[], templateId: string): MappingMemoryEntry | null => {
+  const fingerprint = generateHeaderFingerprint(headers);
+  const memory = getStoredMappingMemory();
+  return memory.find((m) => m.fingerprint === fingerprint && m.templateId === templateId) || null;
+};
+
+const saveMappingMemory = (
+  headers: string[],
+  templateId: string,
+  templateName: string,
+  mappings: FieldMapping[],
+  fileName: string,
+  processId: string
+) => {
+  const fingerprint = generateHeaderFingerprint(headers);
+  const pairs: SavedMappingPair[] = mappings
+    .filter((m) => m.source_field && m.source_field !== 'UNMATCHED' && m.target_field)
+    .map((m) => ({
+      sourceField: m.source_field,
+      targetField: m.target_field,
+      confidence: m.confidence || 1.0,
+      status: m.status || 'ACCEPTED',
+    }));
+
+  if (pairs.length === 0) return;
+
+  const entry: MappingMemoryEntry = {
+    fingerprint,
+    headers: headers.slice(),
+    templateId,
+    templateName,
+    mappings: pairs,
+    savedAt: new Date().toISOString(),
+    savedBy: 'Warisa T.',
+    fileName,
+    processId,
+    useCount: 0,
+  };
+
+  const existing = getStoredMappingMemory();
+  const filtered = existing.filter((m) => m.fingerprint !== fingerprint || m.templateId !== templateId);
+  saveStoredMappingMemory([entry, ...filtered]);
+};
+
+const deleteMappingMemoryByProcessId = (processId: string) => {
+  const existing = getStoredMappingMemory();
+  const filtered = existing.filter((m) => m.processId !== processId);
+  if (filtered.length !== existing.length) {
+    saveStoredMappingMemory(filtered);
   }
 };
 
@@ -1457,6 +1551,9 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
     })),
   currentStep: 1,
   setCurrentStep: (step) => set({ currentStep: step }),
+  isSidebarCollapsed: false,
+  toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
+  setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   startNewProcess: () => {
     set({
       process: null,
@@ -2228,6 +2325,82 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
         const firstSheet = sheetNames[0] || 'Sheet1';
         const firstSheetData = sheetDataMap[firstSheet] || { headers: [], rows: [], mappings: [] };
 
+        // === MAPPING MEMORY: Check if we have learned mappings for this file structure ===
+        const firstSheetHeaders = firstSheetData.headers || [];
+        const memoryMatch = findMatchingMemory(firstSheetHeaders, targetTemplateObj.id);
+        let wasMemoryApplied = false;
+
+        if (memoryMatch && memoryMatch.mappings.length > 0) {
+          // Apply learned mappings from memory to ALL sheets
+          for (const sname of sheetNames) {
+            const sd = sheetDataMap[sname];
+            if (!sd) continue;
+            const updatedMappings = sd.mappings.map((m) => {
+              const memPair = memoryMatch.mappings.find(
+                (mp) => mp.targetField.toUpperCase() === m.target_field.toUpperCase()
+              );
+              if (memPair && memPair.sourceField !== 'UNMATCHED') {
+                // Check if the memorized source field actually exists in this sheet's headers
+                const headerExists = sd.headers.some(
+                  (h) => h.trim().toLowerCase() === memPair.sourceField.trim().toLowerCase()
+                );
+                if (headerExists) {
+                  const firstRow = sd.rows?.[0] || {};
+                  const rawVal = firstRow[memPair.sourceField];
+                  const sampleVal = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== ''
+                    ? getAiDerivedFieldValue(m.target_field, memPair.sourceField, rawVal, firstRow, 0)
+                    : m.source_sample;
+                  return {
+                    ...m,
+                    source_field: memPair.sourceField,
+                    source_sample: sampleVal,
+                    confidence: 1.0,
+                    confidence_level: 'High' as const,
+                    status: 'ACCEPTED' as const,
+                    is_learned: true,
+                    reasons: [`AI นำกฎที่เคยเรียนรู้จากไฟล์ "${memoryMatch.fileName}" มาจับคู่อัตโนมัติ 100% (Learned Memory: ${memPair.sourceField} -> ${memPair.targetField})`],
+                  };
+                }
+              }
+              return m;
+            });
+            sheetDataMap[sname] = { ...sd, mappings: updatedMappings };
+          }
+
+          // Update memory use count
+          const allMemory = getStoredMappingMemory();
+          const updatedMemory = allMemory.map((mm) =>
+            mm.fingerprint === memoryMatch.fingerprint && mm.templateId === memoryMatch.templateId
+              ? { ...mm, useCount: mm.useCount + 1 }
+              : mm
+          );
+          saveStoredMappingMemory(updatedMemory);
+          wasMemoryApplied = true;
+
+          // Re-read first sheet data after memory application
+          const updatedFirstSheetData = sheetDataMap[firstSheet] || firstSheetData;
+          firstSheetData.mappings = updatedFirstSheetData.mappings;
+
+          get().addAuditLog({
+            user: 'AI Rule Engine (Learned Memory)',
+            user_role: 'Autonomous AI Rule Engine',
+            category: 'AI_MAPPING',
+            action: 'นำกฎที่เคยเรียนรู้มาจับคู่อัตโนมัติ (Applied Learned Memory)',
+            file: nameStr,
+            mapping: `จดจำจากไฟล์ "${memoryMatch.fileName}" (ใช้ครั้งที่ ${memoryMatch.useCount + 1})`,
+            details: `AI ตรวจพบโครงสร้างคอลัมน์ตรงกับไฟล์ที่เคยจับคู่สำเร็จ จึงนำ ${memoryMatch.mappings.length} กฎการจับคู่มาใช้ทันที 100%`,
+            status: 'Approved',
+          });
+        }
+
+        // Step 1: Calculate true default AI confidence across all fields directly from upload
+        const allInitialMappings = firstSheetData.mappings || [];
+        const initialConfSum = allInitialMappings.reduce((acc, m) => acc + (m.confidence || 0), 0);
+        const rawInitialConf = allInitialMappings.length > 0
+          ? initialConfSum / allInitialMappings.length
+          : (isSecurityInstruction ? 0.98 : 0.91);
+        const initialAiConfidence = Number(rawInitialConf.toFixed(2));
+
         const newProc: Process = {
           id: `proc_${Date.now()}`,
           rawFile: file,
@@ -2241,8 +2414,9 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
           target_template: targetTemplateObj.name,
           current_step: 2,
           step_name: 'Step 2: ตรวจสอบและยืนยันการจับคู่',
-          status: 'Analyzed',
-          overall_confidence: isSecurityInstruction ? 0.98 : 0.95,
+          status: wasMemoryApplied ? 'Learned' : 'Analyzed',
+          overall_confidence: initialAiConfidence,
+          initial_overall_confidence: initialAiConfidence,
           created_at: new Date().toISOString(),
           analysis_progress: 100,
           analysis_summary: {
@@ -2324,8 +2498,8 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
 
     const scoring = calculateFieldMappingConfidence(newSourceField, targetField, sampleVal, tfDef?.data_type);
 
-    const updatedMappings = proc.mappings.map((m) => {
-      if (m.target_field === targetField) {
+    const updateMappingItem = (m: FieldMapping) => {
+      if (m.target_field && m.target_field.trim().toUpperCase() === targetField.trim().toUpperCase()) {
         return {
           ...m,
           source_field: isUnmatched ? 'UNMATCHED' : newSourceField,
@@ -2334,12 +2508,65 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
           confidence: isUnmatched ? 0.0 : scoring.confidence,
           confidence_level: isUnmatched ? ('Low' as const) : scoring.confidenceLevel,
           status: isUnmatched ? ('UNMATCHED' as const) : (scoring.isTypeMismatch ? ('SUGGESTED' as const) : ('MODIFIED' as const)),
+          is_learned: isUnmatched ? false : m.is_learned,
           reasons: isUnmatched
             ? [`ผู้ใช้กำหนดไม่ระบุคอลัมน์สำหรับ ${targetField}`]
             : [scoring.reason],
         };
       }
       return m;
+    };
+
+    let updatedMappings = (proc.mappings || []).map(updateMappingItem);
+    const hasTargetInProc = updatedMappings.some((m) => m.target_field && m.target_field.trim().toUpperCase() === targetField.trim().toUpperCase());
+    if (!hasTargetInProc) {
+      updatedMappings.push({
+        id: `map_${targetField}_${Date.now()}`,
+        process_id: proc.id,
+        target_field: targetField,
+        target_data_type: tfDef?.data_type || 'String',
+        target_required: tfDef?.required ?? true,
+        target_format: tfDef?.format || '-',
+        source_field: isUnmatched ? 'UNMATCHED' : newSourceField,
+        source_sample: isUnmatched ? '-' : sampleVal,
+        source_data_type: isUnmatched ? 'Text' : dataTypeVal,
+        confidence: isUnmatched ? 0.0 : scoring.confidence,
+        confidence_level: isUnmatched ? ('Low' as const) : scoring.confidenceLevel,
+        status: isUnmatched ? ('UNMATCHED' as const) : ('MODIFIED' as const),
+        reasons: isUnmatched ? [`ผู้ใช้กำหนดไม่ระบุคอลัมน์สำหรับ ${targetField}`] : [scoring.reason],
+      });
+    }
+
+    let sheetMappings = (currentSheetData?.mappings || updatedMappings).map(updateMappingItem);
+    const hasTargetInSheet = sheetMappings.some((m) => m.target_field && m.target_field.trim().toUpperCase() === targetField.trim().toUpperCase());
+    if (!hasTargetInSheet) {
+      sheetMappings.push({
+        id: `map_sheet_${targetField}_${Date.now()}`,
+        process_id: proc.id,
+        target_field: targetField,
+        target_data_type: tfDef?.data_type || 'String',
+        target_required: tfDef?.required ?? true,
+        target_format: tfDef?.format || '-',
+        source_field: isUnmatched ? 'UNMATCHED' : newSourceField,
+        source_sample: isUnmatched ? '-' : sampleVal,
+        source_data_type: isUnmatched ? 'Text' : dataTypeVal,
+        confidence: isUnmatched ? 0.0 : scoring.confidence,
+        confidence_level: isUnmatched ? ('Low' as const) : scoring.confidenceLevel,
+        status: isUnmatched ? ('UNMATCHED' as const) : ('MODIFIED' as const),
+        reasons: isUnmatched ? [`ผู้ใช้กำหนดไม่ระบุคอลัมน์สำหรับ ${targetField}`] : [scoring.reason],
+      });
+    }
+
+    // Update row data in sheet to reflect the new mapped value or '-' for unmatched
+    const updatedRows = (currentSheetData?.rows || proc.extractedRecords || []).map((r, rIdx) => {
+      const updatedR = { ...r };
+      if (isUnmatched) {
+        updatedR[targetField] = '-';
+      } else {
+        const rawV = updatedR[newSourceField];
+        updatedR[targetField] = getAiDerivedFieldValue(targetField, newSourceField, rawV, updatedR, rIdx);
+      }
+      return updatedR;
     });
 
     let updatedSheetMap = proc.sheetDataMap;
@@ -2348,19 +2575,30 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
         ...proc.sheetDataMap,
         [activeSheet]: {
           ...proc.sheetDataMap[activeSheet],
-          mappings: updatedMappings,
+          mappings: sheetMappings,
+          rows: updatedRows,
         },
       };
     }
 
+    // If unmatched, explicitly uncheck this field
+    const updatedChecked = { ...(get().checkedFieldIds || {}) };
+    if (isUnmatched) {
+      updatedChecked[`${activeSheet}::${targetField}`] = false;
+      updatedChecked[targetField] = false;
+    }
+
     set({
+      checkedFieldIds: updatedChecked,
       process: {
         ...proc,
         mappings: updatedMappings,
+        extractedRecords: updatedRows,
         sheetDataMap: updatedSheetMap,
       },
     });
   },
+
 
   acceptMapping: async (mappingId: string, sheetName?: string) => {
     const state = get();
@@ -2481,9 +2719,33 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
         ...proc,
         mappings: updatedMappings,
         sheetDataMap: updatedSheetMap,
-        overall_confidence: 1.0,
+        overall_confidence: proc.initial_overall_confidence || proc.overall_confidence || 0.91,
       },
     });
+
+    // === MAPPING MEMORY: Save learned mappings on confirm ===
+    const activeSheet = get().activeSheetName || proc.sheets?.[0] || 'Sheet1';
+    const sheetHeaders = proc.sheetDataMap?.[activeSheet]?.headers || [];
+    if (sheetHeaders.length > 0 && updatedMappings.length > 0) {
+      saveMappingMemory(
+        sheetHeaders,
+        proc.target_template_id,
+        proc.target_template,
+        updatedMappings,
+        proc.file_name,
+        proc.id
+      );
+      get().addAuditLog({
+        user: 'AI Rule Engine (Learned Memory)',
+        user_role: 'Autonomous AI Rule Engine',
+        category: 'TEMPLATE_RULE',
+        action: 'บันทึกโครงสร้างการจับคู่ฟิลด์สู่คลังความจำ AI (Mapping Memory Saved)',
+        file: proc.file_name,
+        mapping: `จดจำ ${updatedMappings.filter((m) => m.source_field !== 'UNMATCHED').length} คู่ฟิลด์จากการยืนยัน`,
+        details: `บันทึก Header Fingerprint ของไฟล์ "${proc.file_name}" (${sheetHeaders.length} คอลัมน์) เพื่อจับคู่อัตโนมัติ 100% ในครั้งถัดไปที่พบโครงสร้างเดียวกัน`,
+        status: 'Approved',
+      });
+    }
   },
 
   updateMappingTarget: (sourceField: string, newTargetField: string) => {
@@ -2669,9 +2931,15 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
 
         // Create target column mapping lookup: target_field -> source_field
         const targetToSource: Record<string, string> = {};
+        const unmappedTargets = new Set<string>();
         mappings.forEach((m: any) => {
-          if (m.target_field && m.source_field && m.source_field !== 'UNMATCHED') {
-            targetToSource[m.target_field] = m.source_field;
+          if (m.target_field) {
+            const tfUpper = m.target_field.trim().toUpperCase();
+            if (m.source_field && m.source_field !== 'UNMATCHED') {
+              targetToSource[tfUpper] = m.source_field;
+            } else {
+              unmappedTargets.add(tfUpper);
+            }
           }
         });
 
@@ -2695,15 +2963,19 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
         const transformedRows = sourceRows
           .map((r: any, idx: number) => {
             const getVal = (targetName: string) => {
-              // 1. Direct standard key (e.g. from Step 3 confirmed records)
-              if (r[targetName] !== undefined && r[targetName] !== null && String(r[targetName]).trim() !== '') {
-                const val = typeof r[targetName] === 'object' && 'formattedVal' in r[targetName] ? r[targetName].formattedVal : r[targetName];
-                return String(val).trim();
+              const tUpper = targetName.trim().toUpperCase();
+              if (unmappedTargets.has(tUpper)) {
+                return '-';
               }
-              // 2. Lookup via source column mapping
-              const srcCol = targetToSource[targetName];
+              // 1. Lookup via source column mapping
+              const srcCol = targetToSource[tUpper];
               if (srcCol && r[srcCol] !== undefined && r[srcCol] !== null && String(r[srcCol]).trim() !== '') {
                 const val = typeof r[srcCol] === 'object' && 'formattedVal' in r[srcCol] ? r[srcCol].formattedVal : r[srcCol];
+                return String(val).trim();
+              }
+              // 2. Direct standard key (e.g. from Step 3 confirmed records)
+              if (r[targetName] !== undefined && r[targetName] !== null && String(r[targetName]).trim() !== '') {
+                const val = typeof r[targetName] === 'object' && 'formattedVal' in r[targetName] ? r[targetName].formattedVal : r[targetName];
                 return String(val).trim();
               }
               return '-';
@@ -2895,6 +3167,9 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
   },
 
   deleteProcess: async (id: string) => {
+    // === MAPPING MEMORY: Remove learned memory for this process ===
+    deleteMappingMemoryByProcessId(id);
+
     try {
       await fetch(`${API_BASE}/processes/${id}`, { method: 'DELETE' });
     } catch {
@@ -2904,6 +3179,17 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
       processes: state.processes.filter((p) => p.id !== id),
       process: state.process?.id === id ? null : state.process,
     }));
+
+    get().addAuditLog({
+      user: 'Warisa T.',
+      user_role: 'Custodian Operations Senior Specialist',
+      category: 'SECURITY',
+      action: 'ลบประวัติการแปลงไฟล์และลบข้อมูลความจำ AI ที่เกี่ยวข้อง',
+      file: '-',
+      mapping: `ลบ Process ID: ${id.slice(0, 12)}...`,
+      details: 'ลบประวัติการแปลงไฟล์ออกจากระบบ พร้อมลบ Mapping Memory ที่เรียนรู้จากไฟล์นี้ ไม่นำไปใช้จับคู่อัตโนมัติอีก',
+      status: 'Deleted',
+    });
   },
 
   updateProcessStep: async (step: number, status?: string) => {

@@ -276,10 +276,16 @@ export const TransformationPreviewSection: React.FC = () => {
 
         // Mapping lookup for this sheet
         const targetToSource: Record<string, string> = {};
+        const unmappedTargets = new Set<string>();
         const sheetMappings = sdata.mappings || process.mappings || [];
         sheetMappings.forEach((m: any) => {
-          if (m.target_field && m.source_field && m.source_field !== 'UNMATCHED') {
-            targetToSource[m.target_field] = m.source_field;
+          if (m.target_field) {
+            const tfUpper = m.target_field.trim().toUpperCase();
+            if (m.source_field && m.source_field !== 'UNMATCHED') {
+              targetToSource[tfUpper] = m.source_field;
+            } else {
+              unmappedTargets.add(tfUpper);
+            }
           }
         });
 
@@ -290,15 +296,19 @@ export const TransformationPreviewSection: React.FC = () => {
           };
 
           const getVal = (targetName: string) => {
-            // 1. Direct standard key (e.g. from Step 3 confirmed records)
-            if (rawRow[targetName] !== undefined && rawRow[targetName] !== null && String(rawRow[targetName]).trim() !== '') {
-              const val = typeof rawRow[targetName] === 'object' && 'formattedVal' in rawRow[targetName] ? rawRow[targetName].formattedVal : rawRow[targetName];
-              return String(val).trim();
+            const tUpper = targetName.trim().toUpperCase();
+            if (unmappedTargets.has(tUpper)) {
+              return '-';
             }
-            // 2. Lookup via source column mapping
-            const srcCol = targetToSource[targetName];
+            // 1. Lookup via source column mapping
+            const srcCol = targetToSource[tUpper];
             if (srcCol && rawRow[srcCol] !== undefined && rawRow[srcCol] !== null && String(rawRow[srcCol]).trim() !== '') {
               const val = typeof rawRow[srcCol] === 'object' && 'formattedVal' in rawRow[srcCol] ? rawRow[srcCol].formattedVal : rawRow[srcCol];
+              return String(val).trim();
+            }
+            // 2. Direct standard key (e.g. from Step 3 confirmed records)
+            if (rawRow[targetName] !== undefined && rawRow[targetName] !== null && String(rawRow[targetName]).trim() !== '') {
+              const val = typeof rawRow[targetName] === 'object' && 'formattedVal' in rawRow[targetName] ? rawRow[targetName].formattedVal : rawRow[targetName];
               return String(val).trim();
             }
             return '-';
@@ -334,9 +344,15 @@ export const TransformationPreviewSection: React.FC = () => {
       }
     } else if (process.extractedRecords && process.extractedRecords.length > 0) {
       const targetToSource: Record<string, string> = {};
+      const unmappedTargets = new Set<string>();
       (process.mappings || []).forEach((m: any) => {
-        if (m.target_field && m.source_field && m.source_field !== 'UNMATCHED') {
-          targetToSource[m.target_field] = m.source_field;
+        if (m.target_field) {
+          const tfUpper = m.target_field.trim().toUpperCase();
+          if (m.source_field && m.source_field !== 'UNMATCHED') {
+            targetToSource[tfUpper] = m.source_field;
+          } else {
+            unmappedTargets.add(tfUpper);
+          }
         }
       });
 
@@ -350,13 +366,17 @@ export const TransformationPreviewSection: React.FC = () => {
         };
 
         const getVal = (targetName: string) => {
-          if (r[targetName] !== undefined && r[targetName] !== null && String(r[targetName]).trim() !== '') {
-            const val = typeof r[targetName] === 'object' && 'formattedVal' in r[targetName] ? r[targetName].formattedVal : r[targetName];
-            return String(val).trim();
+          const tUpper = targetName.trim().toUpperCase();
+          if (unmappedTargets.has(tUpper)) {
+            return '-';
           }
-          const srcCol = targetToSource[targetName];
+          const srcCol = targetToSource[tUpper];
           if (srcCol && r[srcCol] !== undefined && r[srcCol] !== null && String(r[srcCol]).trim() !== '') {
             const val = typeof r[srcCol] === 'object' && 'formattedVal' in r[srcCol] ? r[srcCol].formattedVal : r[srcCol];
+            return String(val).trim();
+          }
+          if (r[targetName] !== undefined && r[targetName] !== null && String(r[targetName]).trim() !== '') {
+            const val = typeof r[targetName] === 'object' && 'formattedVal' in r[targetName] ? r[targetName].formattedVal : r[targetName];
             return String(val).trim();
           }
           return '-';

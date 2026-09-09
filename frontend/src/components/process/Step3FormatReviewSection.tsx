@@ -420,9 +420,15 @@ export const Step3FormatReviewSection: React.FC = () => {
           const sData = updatedSheetMap[sName];
           const sMappings = sData.mappings || process.mappings || [];
           const tToS: Record<string, string> = {};
+          const unmappedTargets = new Set<string>();
           sMappings.forEach((m: any) => {
-            if (m.target_field && m.source_field && m.source_field !== 'UNMATCHED') {
-              tToS[m.target_field] = m.source_field;
+            if (m.target_field) {
+              const tfUpper = m.target_field.trim().toUpperCase();
+              if (m.source_field && m.source_field !== 'UNMATCHED') {
+                tToS[tfUpper] = m.source_field;
+              } else {
+                unmappedTargets.add(tfUpper);
+              }
             }
           });
           const rawRows = (sData.rows || []).filter((r: any) => !isFootnoteOrNonDataRow(r, (sData.headers || []).length || 8));
@@ -430,11 +436,14 @@ export const Step3FormatReviewSection: React.FC = () => {
             .map((rawRow: any, idx: number) => {
               const rowObj: Record<string, any> = { id: idx + 1, sheetName: sName };
               columnsList.forEach((col) => {
-                let v = rawRow[col];
-                if (v === undefined || v === null || String(v).trim() === '') {
-                  const sc = tToS[col];
-                  if (sc && rawRow[sc] !== undefined && rawRow[sc] !== null) {
+                const colUpper = col.trim().toUpperCase();
+                let v: any = '-';
+                if (!unmappedTargets.has(colUpper)) {
+                  const sc = tToS[colUpper];
+                  if (sc && rawRow[sc] !== undefined && rawRow[sc] !== null && String(rawRow[sc]).trim() !== '') {
                     v = rawRow[sc];
+                  } else if (rawRow[col] !== undefined && rawRow[col] !== null && String(rawRow[col]).trim() !== '') {
+                    v = rawRow[col];
                   }
                 }
                 const val = typeof v === 'object' && v !== null && 'formattedVal' in v ? v.formattedVal : v;

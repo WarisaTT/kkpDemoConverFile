@@ -235,7 +235,24 @@ export const MappingTableSection: React.FC = () => {
         (m) => m.target_field && m.target_field.trim().toUpperCase() === tf.name.toUpperCase()
       );
 
-      if (match && match.source_field && match.source_field !== 'UNMATCHED') {
+      if (match) {
+        if (!match.source_field || match.source_field === 'UNMATCHED') {
+          return {
+            ...match,
+            source_field: 'UNMATCHED',
+            source_sample: '-',
+            confidence: 0,
+            confidence_level: 'Unmatched',
+            status: 'UNMATCHED',
+            is_learned: false,
+            target_field: tf.name,
+            target_data_type: tf.data_type,
+            target_required: tf.required,
+            target_format: tf.format,
+            reasons: ['ไม่ได้จับคู่ / กำหนดไม่ใช้งานในไฟล์เป้าหมาย'],
+          };
+        }
+
         const rawLive = (firstRow && firstRow[match.source_field] !== undefined && String(firstRow[match.source_field]).trim() !== '')
           ? String(firstRow[match.source_field]) 
           : (getSourceFieldSample(match.source_field, process, currentActiveSheet) || '');
@@ -382,7 +399,10 @@ export const MappingTableSection: React.FC = () => {
   const totalTargetFields = targetFirstMappings.length;
 
   const totalConfidenceSum = targetFirstMappings.reduce((acc, m) => acc + (m.source_field !== 'UNMATCHED' ? m.confidence : 0), 0);
-  const avgAccuracyPct = Math.round((totalConfidenceSum / totalTargetFields) * 100);
+  const initialDefaultAiConfidence = process?.initial_overall_confidence !== undefined
+    ? process.initial_overall_confidence
+    : (process?.overall_confidence !== undefined ? process.overall_confidence : (totalTargetFields > 0 ? totalConfidenceSum / totalTargetFields : 0.91));
+  const avgAccuracyPct = Math.round(initialDefaultAiConfidence * 100);
 
   // Filtered target-first mappings by filter & search query
   const filteredMappings = targetFirstMappings.filter((m) => {
@@ -396,16 +416,16 @@ export const MappingTableSection: React.FC = () => {
 
     const filter = confidenceFilter || 'All';
     if (filter === 'High') return m.confidence >= 0.80 && m.source_field !== 'UNMATCHED';
-    if (filter === 'NeedsReview' || filter === 'Amber') return (m.confidence < 0.80 && m.confidence >= 0.60 && m.source_field !== 'UNMATCHED');
-    if (filter === 'Low') return (m.confidence < 0.60 && m.source_field !== 'UNMATCHED');
+    if (filter === 'NeedsReview' || filter === 'Amber') return (m.confidence < 0.80 && m.confidence > 0 && m.source_field !== 'UNMATCHED');
+    if (filter === 'Low') return (m.confidence < 0.60 && m.confidence > 0 && m.source_field !== 'UNMATCHED');
     if (filter === 'Unmatched') return m.source_field === 'UNMATCHED' || m.confidence === 0;
 
     return true;
   });
 
   const highCount = targetFirstMappings.filter((m) => m.confidence >= 0.80 && m.source_field !== 'UNMATCHED').length;
-  const needsReviewCount = targetFirstMappings.filter((m) => m.confidence < 0.80 && m.confidence >= 0.60 && m.source_field !== 'UNMATCHED').length;
-  const lowCount = targetFirstMappings.filter((m) => m.confidence < 0.60 && m.source_field !== 'UNMATCHED').length;
+  const needsReviewCount = targetFirstMappings.filter((m) => m.confidence < 0.80 && m.confidence > 0 && m.source_field !== 'UNMATCHED').length;
+  const lowCount = targetFirstMappings.filter((m) => m.confidence < 0.60 && m.confidence > 0 && m.source_field !== 'UNMATCHED').length;
   const unmatchedCount = targetFirstMappings.filter((m) => m.source_field === 'UNMATCHED' || m.confidence === 0).length;
   const unmatchedRatio = totalTargetFields > 0 ? unmatchedCount / totalTargetFields : 0;
   const isUnmatchedOver40 = unmatchedRatio >= 0.4;

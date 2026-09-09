@@ -1,17 +1,28 @@
 'use client';
 
 import React from 'react';
-import { Bell, ChevronDown } from 'lucide-react';
+import { Bell, ChevronDown, PanelLeft } from 'lucide-react';
+import { useProcessStore } from '@/store/useProcessStore';
 
 export const Header: React.FC = () => {
+  const { isSidebarCollapsed, toggleSidebar } = useProcessStore();
+
   return (
-    <header className="h-18 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between flex-shrink-0">
+    <header className="h-18 bg-white border-b border-slate-200/80 px-6 lg:px-8 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center gap-3">
+        <button
+          onClick={toggleSidebar}
+          className="p-2 text-slate-500 hover:text-[#2e1d52] hover:bg-slate-100 rounded-xl transition flex items-center justify-center border border-slate-200/60 shadow-xs"
+          title={isSidebarCollapsed ? 'ขยายแถบเมนูข้าง' : 'ย่อแถบเมนูข้าง'}
+        >
+          <PanelLeft className="w-5 h-5" />
+        </button>
+
         <div className="w-8 h-8 rounded-lg overflow-hidden border border-purple-200 shadow-xs flex-shrink-0">
           <img src="/kkp-logo.png" alt="KKP Emblem" className="w-full h-full object-cover" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-[#2e1d52] tracking-tight">
+          <h1 className="text-lg lg:text-xl font-bold text-[#2e1d52] tracking-tight">
             ระบบแปลงข้อมูลด้วยปัญญาประดิษฐ์ (AI Data Transformation)
           </h1>
           <p className="text-xs text-slate-700 font-semibold">

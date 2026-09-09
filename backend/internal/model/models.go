@@ -100,8 +100,9 @@ type Process struct {
 	CurrentStep       int                     `json:"current_step"`
 	StepName          string                  `json:"step_name"`
 	Status            string                  `json:"status"` // Uploaded, Analyzed, Mapped, Validated, Completed
-	OverallConfidence float64                 `json:"overall_confidence"`
-	CreatedAt         time.Time               `json:"created_at"`
+	OverallConfidence        float64                 `json:"overall_confidence"`
+	InitialOverallConfidence float64                 `json:"initial_overall_confidence"`
+	CreatedAt                time.Time               `json:"created_at"`
 	AnalysisProgress  int                     `json:"analysis_progress"`
 	AnalysisSummary   map[string]interface{} `json:"analysis_summary"`
 	SuggestedNewTemplate     bool            `json:"suggested_new_template"`

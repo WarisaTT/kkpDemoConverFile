@@ -293,7 +293,9 @@ func (s *TransformService) CreateProcess(fileName string, fileSize string, fileB
 
 	proc.AnalysisSummary = summary
 	proc.Mappings = mappings
-	proc.OverallConfidence = calculateOverallConfidence(mappings)
+	initialConf := calculateOverallConfidence(mappings)
+	proc.OverallConfidence = initialConf
+	proc.InitialOverallConfidence = initialConf
 	proc.Previews = generateTransformationPreviews()
 	proc.Validation = calculateRealValidationSummary(proc.RowCount, mappings, tmpl)
 
@@ -388,7 +390,6 @@ func (s *TransformService) ApproveMapping(processID, mappingID, user string) (*m
 			proc.Mappings[i].ApprovedBy = user
 			proc.Mappings[i].ApprovedAt = &now
 
-			proc.OverallConfidence = calculateOverallConfidence(proc.Mappings)
 			s.logAudit(user, "ยอมรับการจับคู่ฟิลด์", proc.FileName, fmt.Sprintf("%s → %s", proc.Mappings[i].SourceField, proc.Mappings[i].TargetField), "Approved")
 			return &proc.Mappings[i], nil
 		}
@@ -419,7 +420,6 @@ func (s *TransformService) UpdateMapping(processID, mappingID, targetField, user
 			m.ApprovedBy = user
 			m.ApprovedAt = &now
 
-			proc.OverallConfidence = calculateOverallConfidence(proc.Mappings)
 			s.logAudit(user, "แก้ไขการจับคู่ฟิลด์", proc.FileName, fmt.Sprintf("%s → %s", m.SourceField, targetField), "Modified")
 			return m, nil
 		}
@@ -436,7 +436,6 @@ func (s *TransformService) UpdateMapping(processID, mappingID, targetField, user
 		now := time.Now()
 		m.ApprovedBy = user
 		m.ApprovedAt = &now
-		proc.OverallConfidence = calculateOverallConfidence(proc.Mappings)
 		s.logAudit(user, "แก้ไขการจับคู่ฟิลด์", proc.FileName, fmt.Sprintf("%s → %s", m.SourceField, targetField), "Modified")
 		return m, nil
 	}

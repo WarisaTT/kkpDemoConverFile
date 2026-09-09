@@ -229,7 +229,7 @@ export const HistoryView: React.FC = () => {
                     <td className="py-3.5 px-4 whitespace-nowrap min-w-[120px]">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs">
                         <Sparkles className="w-3 h-3 text-emerald-700" />
-                        {(item.overall_confidence * 100).toFixed(0)}%
+                        {Math.round((item.initial_overall_confidence ?? item.overall_confidence ?? 0.91) * 100)}%
                       </span>
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap min-w-[180px]">
@@ -406,7 +406,7 @@ export const HistoryView: React.FC = () => {
               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                 <span className="text-[10px] font-black uppercase text-slate-500 block">ความเชื่อมั่น AI</span>
                 <span className="text-xs font-black text-emerald-700 block mt-0.5">
-                  {(inspectProcess.overall_confidence * 100).toFixed(0)}%
+                  {Math.round((inspectProcess.initial_overall_confidence ?? inspectProcess.overall_confidence ?? 0.91) * 100)}%
                 </span>
               </div>
               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
