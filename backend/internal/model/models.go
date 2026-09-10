@@ -86,13 +86,29 @@ type ValidationSummary struct {
 	Details      []ValidationErrorDetail    `json:"details"`
 }
 
+// FormPair represents a key-value pair extracted from document forms (PDF, Email, etc.)
+type FormPair struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+
+// SheetData holds per-sheet extracted data: headers, rows, mappings, and optional form pairs.
+type SheetData struct {
+	Headers        []string                 `json:"headers"`
+	Rows           []map[string]interface{} `json:"rows"`
+	Mappings       []FieldMapping           `json:"mappings"`
+	IsKeyValueForm bool                     `json:"isKeyValueForm,omitempty"`
+	RawFormPairs   []FormPair               `json:"rawFormPairs,omitempty"`
+}
+
 // Process represents a data transformation execution session.
 type Process struct {
-	RawFileBytes      []byte                  
+	RawFileBytes      []byte                  `json:"-"`
 	ID                string                  `json:"id"`
 	FileName          string                  `json:"file_name"`
 	FileSize          string                  `json:"file_size"`
 	SheetCount        int                     `json:"sheet_count"`
+	Sheets            []string                `json:"sheets,omitempty"`
 	RowCount          int                     `json:"row_count"`
 	ColumnCount       int                     `json:"column_count"`
 	TargetTemplateID  string                  `json:"target_template_id"`
@@ -108,6 +124,8 @@ type Process struct {
 	SuggestedNewTemplate     bool            `json:"suggested_new_template"`
 	SuggestedTemplateDetails *TargetTemplate `json:"suggested_template_details,omitempty"`
 	Mappings          []FieldMapping          `json:"mappings"`
+	ExtractedRecords  []map[string]interface{} `json:"extractedRecords,omitempty"`
+	SheetDataMap      map[string]*SheetData    `json:"sheetDataMap,omitempty"`
 	Previews          []TransformationPreview `json:"previews"`
 	Validation        *ValidationSummary      `json:"validation,omitempty"`
 }

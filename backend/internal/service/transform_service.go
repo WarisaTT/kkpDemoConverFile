@@ -73,6 +73,11 @@ func NewTransformService(aiProv ai.AIProvider, p *parser.ExcelParser) *Transform
 	svc.initDefaultTemplates()
 	svc.initDefaultAuditLogs()
 
+	// Restore persisted processes from disk if available
+	if persisted, err := LoadAllProcesses(); err == nil && len(persisted) > 0 {
+		svc.processes = persisted
+	}
+
 	if apiKey != "" {
 		svc.logAudit("ระบบ (Environment)", "โหลด AI API Key อัตโนมัติจาก .env", "-", fmt.Sprintf("Model: %s", modelName), "Approved")
 	}
@@ -221,6 +226,7 @@ func (s *TransformService) CreateProcess(fileName string, fileSize string, fileB
 
 	tmpl := s.templates["KKP_CUSTODIAN_TRADE_V2"]
 	fields, sheets, rows, cols, _ := s.parser.ExtractFields(fileName, fileBytes)
+	sheetNames, sheetDataMap, _ := s.parser.ExtractAllSheetData(fileName, fileBytes)
 
 	pID := uuid.New().String()
 	proc := &model.Process{
@@ -228,16 +234,24 @@ func (s *TransformService) CreateProcess(fileName string, fileSize string, fileB
 		FileName:         fileName,
 		FileSize:         fileSize,
 		SheetCount:       sheets,
+		Sheets:           sheetNames,
+		SheetDataMap:     sheetDataMap,
 		RowCount:         rows,
 		ColumnCount:      cols,
 		TargetTemplateID: tmpl.ID,
 		TargetTemplate:   tmpl.Name,
-		CurrentStep:      1,
-		StepName:         "Step 1: อัปโหลดและวิเคราะห์",
+		CurrentStep:      2,
+		StepName:         "Step 2: จับคู่ฟิลด์ AI",
 		Status:           "Analyzed",
 		CreatedAt:        time.Now(),
 		AnalysisProgress: 100,
 		RawFileBytes:     fileBytes,
+	}
+
+	if len(sheetNames) > 0 {
+		if firstSheet, ok := sheetDataMap[sheetNames[0]]; ok && firstSheet != nil {
+			proc.ExtractedRecords = firstSheet.Rows
+		}
 	}
 
 	// Synchronously run AI analysis for exact payload return
@@ -300,22 +314,25 @@ func (s *TransformService) CreateProcess(fileName string, fileSize string, fileB
 	proc.Validation = calculateRealValidationSummary(proc.RowCount, mappings, tmpl)
 
 	s.processes[pID] = proc
+	_ = SaveProcess(proc)
 	s.logAudit("ระบบอัตโนมัติ", "อัปโหลดและวิเคราะห์ไฟล์สำเร็จ", fileName, fmt.Sprintf("วิเคราะห์ %d ฟิลด์", len(mappings)), "Completed")
 
 	return proc, nil
 }
-
 
 func (s *TransformService) GetProcesses() []*model.Process {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	list := make([]*model.Process, 0, len(s.processes))
 	for _, p := range s.processes {
-		list = append(list, p)
+		shallow := *p
+		shallow.SheetDataMap = nil
+		shallow.ExtractedRecords = nil
+		shallow.RawFileBytes = nil
+		list = append(list, &shallow)
 	}
 	return list
 }
-
 
 func (s *TransformService) DeleteProcess(id string) error {
 	s.mu.Lock()
@@ -328,6 +345,7 @@ func (s *TransformService) DeleteProcess(id string) error {
 
 	fileName := proc.FileName
 	delete(s.processes, id)
+	_ = DeleteProcessFile(id)
 
 	s.logAudit("ผู้ดูแลระบบ", "ลบการวิเคราะห์ไฟล์", fileName, "ยกเลิกการนำไปใช้พัฒนา AI (Excluded from AI Training)", "Deleted")
 	return nil
@@ -360,6 +378,7 @@ func (s *TransformService) UpdateProcessStep(id string, step int, status string)
 	if status != "" {
 		proc.Status = status
 	}
+	_ = SaveProcess(proc)
 	return proc, nil
 }
 
@@ -371,6 +390,28 @@ func (s *TransformService) GetProcess(id string) (*model.Process, error) {
 		return nil, fmt.Errorf("process not found")
 	}
 	return p, nil
+}
+
+func (s *TransformService) SyncProcess(proc *model.Process) (*model.Process, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if proc.ID == "" {
+		proc.ID = uuid.New().String()
+	}
+	if proc.CreatedAt.IsZero() {
+		proc.CreatedAt = time.Now()
+	}
+	// Preserve existing raw file bytes if available
+	if existing, exists := s.processes[proc.ID]; exists && len(proc.RawFileBytes) == 0 {
+		proc.RawFileBytes = existing.RawFileBytes
+	}
+
+	s.processes[proc.ID] = proc
+	if err := SaveProcess(proc); err != nil {
+		return nil, err
+	}
+	return proc, nil
 }
 
 func (s *TransformService) ApproveMapping(processID, mappingID, user string) (*model.FieldMapping, error) {
@@ -390,6 +431,7 @@ func (s *TransformService) ApproveMapping(processID, mappingID, user string) (*m
 			proc.Mappings[i].ApprovedBy = user
 			proc.Mappings[i].ApprovedAt = &now
 
+			_ = SaveProcess(proc)
 			s.logAudit(user, "ยอมรับการจับคู่ฟิลด์", proc.FileName, fmt.Sprintf("%s → %s", proc.Mappings[i].SourceField, proc.Mappings[i].TargetField), "Approved")
 			return &proc.Mappings[i], nil
 		}
@@ -420,6 +462,7 @@ func (s *TransformService) UpdateMapping(processID, mappingID, targetField, user
 			m.ApprovedBy = user
 			m.ApprovedAt = &now
 
+			_ = SaveProcess(proc)
 			s.logAudit(user, "แก้ไขการจับคู่ฟิลด์", proc.FileName, fmt.Sprintf("%s → %s", m.SourceField, targetField), "Modified")
 			return m, nil
 		}
@@ -436,6 +479,8 @@ func (s *TransformService) UpdateMapping(processID, mappingID, targetField, user
 		now := time.Now()
 		m.ApprovedBy = user
 		m.ApprovedAt = &now
+
+		_ = SaveProcess(proc)
 		s.logAudit(user, "แก้ไขการจับคู่ฟิลด์", proc.FileName, fmt.Sprintf("%s → %s", m.SourceField, targetField), "Modified")
 		return m, nil
 	}

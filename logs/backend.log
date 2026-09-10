@@ -1,5 +1,5 @@
-2026/09/09 16:11:46 Loaded environment variables from ../.env
-2026/09/09 16:11:46  KKP AI Backend server starting on port 8080...
+2026/09/10 09:36:55 Loaded environment variables from ../.env
+2026/09/10 09:36:55  KKP AI Backend server starting on port 8080...
 
  ┌───────────────────────────────────────────────────┐ 
  │   KKP AI Data Transformation Platform API v1.0    │ 
@@ -8,24 +8,15 @@
  │       (bound on host 0.0.0.0 and port 8080)       │ 
  │                                                   │ 
  │ Handlers ............ 28  Processes ........... 1 │ 
- │ Prefork ....... Disabled  PID ............. 42843 │ 
+ │ Prefork ....... Disabled  PID ............. 12787 │ 
  └───────────────────────────────────────────────────┘ 
 
-16:11:47 | 200 |         566µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:11:47 | 200 |      11.667µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:11:47 | 200 |     137.375µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:11:47 | 200 |      25.875µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:12:51 | 200 |      16.208µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:12:51 | 200 |      94.167µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:12:51 | 200 |      11.292µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:12:52 | 200 |      72.791µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:14:48 | 200 |      14.417µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:14:48 | 200 |       8.125µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:14:48 | 200 |     221.292µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:14:48 | 200 |      78.417µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:14:48 | 200 |      13.792µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:14:48 | 200 |      15.125µs | 127.0.0.1 | GET | /api/v1/processes | -
-16:14:49 | 200 |     162.292µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:14:49 | 200 |      81.583µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
-16:41:55 | 200 |     136.333µs | 127.0.0.1 | GET | /api/v1/settings/ai | -
-16:41:55 | 200 |          24µs | 127.0.0.1 | GET | /api/v1/settings/ai | -
+09:37:07 | 200 |    5.012541ms | 127.0.0.1 | GET | /api/v1/processes | -
+09:37:07 | 200 |       7.084µs | 127.0.0.1 | GET | /api/v1/processes | -
+09:37:07 | 200 |         277µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+09:37:07 | 200 |      22.708µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+09:37:11 | 201 |  272.340666ms | 127.0.0.1 | POST | /api/v1/files/upload | -
+09:37:26 | 200 |      80.125µs | 127.0.0.1 | GET | /api/v1/processes | -
+09:37:26 | 200 |     187.541µs | 127.0.0.1 | GET | /api/v1/processes | -
+09:37:26 | 200 |      81.084µs | 127.0.0.1 | GET | /api/v1/audit-logs | -
+09:37:26 | 200 |      27.708µs | 127.0.0.1 | GET | /api/v1/audit-logs | -

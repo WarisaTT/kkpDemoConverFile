@@ -30,9 +30,11 @@ func (h *Handler) RegisterRoutes(app *fiber.App) {
 	api.Post("/settings/ai", h.UpdateAISettings)
 
 	api.Get("/processes", h.GetProcesses)
+	api.Post("/processes/sync", h.SyncProcess)
 	api.Post("/files/upload", h.UploadFile)
 	api.Post("/upload", h.UploadFile)
 	api.Get("/processes/:id", h.GetProcess)
+	api.Get("/processes/:id/full", h.GetProcess)
 	api.Put("/processes/:id/step", h.UpdateProcessStep)
 	api.Delete("/processes/:id", h.DeleteProcess)
 	api.Post("/processes/:id/mappings/:mappingId/approve", h.ApproveMapping)
@@ -163,6 +165,18 @@ func (h *Handler) UploadFile(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(proc)
+}
+
+func (h *Handler) SyncProcess(c *fiber.Ctx) error {
+	var proc model.Process
+	if err := c.BodyParser(&proc); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid process payload"})
+	}
+	saved, err := h.svc.SyncProcess(&proc)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(saved)
 }
 
 func (h *Handler) GetProcess(c *fiber.Ctx) error {

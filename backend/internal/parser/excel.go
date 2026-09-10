@@ -225,6 +225,164 @@ func findHeaderRow(rows [][]string) (int, []string) {
 	return bestIdx, bestHeaders
 }
 
+// ExtractAllSheetData extracts per-sheet data from file bytes: headers, rows (as maps), sheet names.
+// This is used for persistence so the frontend can restore full data after refresh.
+func (p *ExcelParser) ExtractAllSheetData(fileName string, fileBytes []byte) (sheetNames []string, sheetDataMap map[string]*model.SheetData, err error) {
+	ext := strings.ToLower(filepath.Ext(fileName))
+	sheetDataMap = make(map[string]*model.SheetData)
+
+	if len(fileBytes) == 0 {
+		return nil, sheetDataMap, fmt.Errorf("empty file")
+	}
+
+	// CSV handling
+	if ext == ".csv" {
+		reader := csv.NewReader(bytes.NewReader(fileBytes))
+		reader.FieldsPerRecord = -1
+		records, err := reader.ReadAll()
+		if err != nil || len(records) == 0 {
+			return nil, sheetDataMap, fmt.Errorf("failed to read CSV: %v", err)
+		}
+
+		sName := strings.TrimSuffix(filepath.Base(fileName), filepath.Ext(fileName))
+		headerIdx, rawHeaders := findHeaderRow(records)
+		var headers []string
+		for _, h := range rawHeaders {
+			t := strings.TrimSpace(h)
+			if t != "" {
+				headers = append(headers, t)
+			}
+		}
+		if len(headers) == 0 {
+			return nil, sheetDataMap, fmt.Errorf("no headers found")
+		}
+
+		var rows []map[string]interface{}
+		dataRows := records[headerIdx+1:]
+		limit := len(dataRows)
+		if limit > 150 {
+			limit = 150
+		}
+		for rIdx := 0; rIdx < limit; rIdx++ {
+			r := dataRows[rIdx]
+			if isFootnoteOrNonDataRow(r, len(headers)) {
+				continue
+			}
+			obj := map[string]interface{}{
+				"id":        rIdx + 1,
+				"sheetName": sName,
+			}
+			for i, h := range headers {
+				if i < len(r) {
+					obj[h] = strings.TrimSpace(r[i])
+				} else {
+					obj[h] = ""
+				}
+			}
+			rows = append(rows, obj)
+		}
+
+		sheetNames = []string{sName}
+		sheetDataMap[sName] = &model.SheetData{
+			Headers: headers,
+			Rows:    rows,
+		}
+		return sheetNames, sheetDataMap, nil
+	}
+
+	// Excel handling
+	if ext == ".xlsx" || ext == ".xls" {
+		f, err := excelize.OpenReader(bytes.NewReader(fileBytes))
+		if err != nil {
+			return nil, sheetDataMap, fmt.Errorf("failed to open Excel: %v", err)
+		}
+		defer f.Close()
+
+		allSheets := f.GetSheetList()
+		for _, sheet := range allSheets {
+			if strings.Contains(strings.ToLower(sheet), "reference") || strings.Contains(strings.ToLower(sheet), "schema") {
+				continue
+			}
+
+			excelRows, err := f.GetRows(sheet)
+			if err != nil || len(excelRows) == 0 {
+				continue
+			}
+
+			headerIdx, rawHeaders := findHeaderRow(excelRows)
+			var headers []string
+			for _, h := range rawHeaders {
+				t := strings.TrimSpace(h)
+				if t != "" {
+					headers = append(headers, t)
+				}
+			}
+			if len(headers) == 0 {
+				continue
+			}
+
+			sheetNames = append(sheetNames, sheet)
+
+			var rows []map[string]interface{}
+			dataRows := excelRows[headerIdx+1:]
+			limit := len(dataRows)
+			if limit > 150 {
+				limit = 150
+			}
+			for rIdx := 0; rIdx < limit; rIdx++ {
+				r := dataRows[rIdx]
+				if isFootnoteOrNonDataRow(r, len(headers)) {
+					continue
+				}
+				obj := map[string]interface{}{
+					"id":        rIdx + 1,
+					"sheetName": sheet,
+				}
+				for i, h := range headers {
+					if i < len(r) {
+						val := strings.TrimSpace(r[i])
+						// Try to preserve numbers
+						if val != "" {
+							if num, err := strconv.ParseFloat(strings.ReplaceAll(val, ",", ""), 64); err == nil && !isDateLikeString(val) {
+								obj[h] = num
+							} else {
+								obj[h] = val
+							}
+						} else {
+							obj[h] = ""
+						}
+					} else {
+						obj[h] = ""
+					}
+				}
+				rows = append(rows, obj)
+			}
+
+			sheetDataMap[sheet] = &model.SheetData{
+				Headers: headers,
+				Rows:    rows,
+			}
+		}
+
+		if len(sheetNames) == 0 {
+			return nil, sheetDataMap, fmt.Errorf("no data sheets found")
+		}
+		return sheetNames, sheetDataMap, nil
+	}
+
+	return nil, sheetDataMap, fmt.Errorf("unsupported file type: %s", ext)
+}
+
+// isDateLikeString checks if a string looks like a date (e.g. "15/07/2026", "2026-08-18")
+func isDateLikeString(s string) bool {
+	if len(s) < 6 || len(s) > 25 {
+		return false
+	}
+	slashCount := strings.Count(s, "/")
+	dashCount := strings.Count(s, "-")
+	return slashCount >= 2 || (dashCount >= 2 && len(s) <= 10)
+}
+
 // GenerateStandardExcel builds a professional KKP Standard formatted .xlsx file preserving individual sheets
 func (p *ExcelParser) GenerateStandardExcel(templateName string, mappings []model.FieldMapping, rawBytes []byte, fileName string) ([]byte, error) {
 	f := excelize.NewFile()
